@@ -1,0 +1,1796 @@
+# Table Football Ranked — Application Generation Specification
+
+## 1. Project Overview
+
+Build a lightweight, game-like ranking application for a private group that plays table football regularly.
+
+Matches are always **2v2**, with teams formed randomly. Each player has an individual Elo rating. Elo determines the player's rank and RR progression.
+
+The application should feel similar to a competitive video game ranking system:
+
+- Individual Elo rating underneath
+- Tier + division on top
+- 0–100 RR-style progression
+- Automatic rank-ups
+- Automatic demotions
+- One-use Demotion Shield
+- Leaderboard
+- Match history
+- Player statistics
+- Teammate statistics
+
+The application does **not** use user authentication.
+
+---
+
+# 2. Technology Stack
+
+Use:
+
+- Angular
+- TypeScript
+- Angular Material
+- Supabase
+- GitHub Pages
+- GitHub Actions for deployment
+
+Use the current stable Angular version available when implementing the project.
+
+The application should be responsive and work well on desktop and mobile.
+
+---
+
+# 3. Authentication
+
+There is **no user authentication**.
+
+Do not implement:
+
+- Login
+- Signup
+- Password reset
+- Auth guards
+- Supabase Auth
+- User accounts
+- `auth_user_id`
+
+The application opens directly to the main dashboard.
+
+Because there is no authentication, database-side integrity is important. Match processing and rating calculations must happen server-side through a Supabase database function/RPC rather than trusting calculations performed by the Angular client.
+
+The application is intended for private use by people who have access to the application URL.
+
+---
+
+# 4. Player Model
+
+Each player has:
+
+- `id`
+- `display_name`
+- `starting_elo`
+- `current_elo`
+- `peak_elo`
+- `visible_rank`
+- `rr`
+- `demotion_shield_active`
+- `demotion_pending`
+- `active`
+- `created_at`
+
+Every new player starts **Unranked** and must complete **5 placement matches** before receiving a visible rank.
+
+During placements:
+
+- Starting Elo: **520**
+- Visible Rank: **Unranked**
+- RR: not displayed
+- Demotion Shield: inactive
+- Demotion pending: false
+- Placement matches played: `0/5`
+
+The 520 starting Elo is the hidden rating baseline. It is used by the Elo system during placement matches.
+
+After the player's fifth placement match, their current Elo is converted into their initial visible rank and RR using the normal rank/RR thresholds defined below.
+
+The initial placement result is therefore determined by the player's performance across the 5 placement matches rather than by immediately assigning Iron I.
+
+---
+
+# 5. Elo System
+
+Use standard Elo.
+
+## Constants
+
+```text
+Starting Elo = 520
+K-factor = 32
+```
+
+Every match is 2v2.
+
+## Team Elo
+
+Team Elo is the arithmetic average of the two teammates' **pre-match Elo**.
+
+```text
+Team A Elo = (Player A1 Elo + Player A2 Elo) / 2
+Team B Elo = (Player B1 Elo + Player B2 Elo) / 2
+```
+
+Do not round team Elo before calculating expected probabilities.
+
+---
+
+# 6. Expected Win Probability
+
+For Team A:
+
+```text
+EA = 1 / (1 + 10 ^ ((TeamB_Elo - TeamA_Elo) / 400))
+```
+
+For Team B:
+
+```text
+EB = 1 - EA
+```
+
+---
+
+# 7. Elo Change
+
+If Team A wins:
+
+```text
+DeltaA = round(32 * (1 - EA))
+DeltaB = -DeltaA
+```
+
+If Team B wins:
+
+```text
+DeltaB = round(32 * (1 - EB))
+DeltaA = -DeltaB
+```
+
+Both players on the same team receive the **same signed Elo delta**.
+
+Example:
+
+```text
+Team A:
+Player 1: 500 Elo
+Player 2: 540 Elo
+
+Team B:
+Player 3: 580 Elo
+Player 4: 620 Elo
+```
+
+Team A Elo:
+
+```text
+520
+```
+
+Team B Elo:
+
+```text
+600
+```
+
+If Team A wins, both Team A players receive the same positive Elo delta and both Team B players receive the same negative Elo delta.
+
+---
+
+# 8. Upsets
+
+Do not implement a separate upset bonus.
+
+The Elo formula naturally makes upsets worth more:
+
+- A lower-rated team beating a higher-rated team gains more Elo.
+- A higher-rated team beating a lower-rated team gains less Elo.
+
+This is the intended behavior.
+
+---
+
+# 9. Match Score
+
+The actual football score does **not** affect Elo.
+
+For example:
+
+```text
+10–0
+```
+
+and:
+
+```text
+10–9
+```
+
+are both simply a win/loss for rating purposes.
+
+The actual score may optionally be stored for future statistics, but it must not affect Elo.
+
+---
+
+# 10. Rank System
+
+There are 9 tiers:
+
+```text
+Lixo
+Iron
+Bronze
+Silver
+Gold
+Platinum
+Diamond
+Emerald
+Champion
+```
+
+All tiers except Lixo and Champion have three divisions:
+
+```text
+I
+II
+III
+```
+
+Division ordering:
+
+```text
+I = lowest
+II = middle
+III = highest
+```
+
+Progression is:
+
+```text
+Iron I
+→ Iron II
+→ Iron III
+→ Bronze I
+→ Bronze II
+→ Bronze III
+→ Silver I
+→ Silver II
+→ Silver III
+→ Gold I
+→ Gold II
+→ Gold III
+→ Platinum I
+→ Platinum II
+→ Platinum III
+→ Diamond I
+→ Diamond II
+→ Diamond III
+→ Emerald I
+→ Emerald II
+→ Emerald III
+→ Champion
+```
+
+Lixo is below Iron I.
+
+---
+
+# 11. Rank/Elo Thresholds
+
+Use 40 Elo points per normal division.
+
+The new rating scale is:
+
+| Rank | Elo Range |
+|---|---:|
+| Lixo | `< 500` |
+| Iron I | `500–539` |
+| Iron II | `540–579` |
+| Iron III | `580–619` |
+| Bronze I | `620–659` |
+| Bronze II | `660–699` |
+| Bronze III | `700–739` |
+| Silver I | `740–779` |
+| Silver II | `780–819` |
+| Silver III | `820–859` |
+| Gold I | `860–899` |
+| Gold II | `900–939` |
+| Gold III | `940–979` |
+| Platinum I | `980–1019` |
+| Platinum II | `1020–1059` |
+| Platinum III | `1060–1099` |
+| Diamond I | `1100–1139` |
+| Diamond II | `1140–1179` |
+| Diamond III | `1180–1219` |
+| Emerald I | `1220–1259` |
+| Emerald II | `1260–1299` |
+| Emerald III | `1300–1339` |
+| Champion | `1340+` |
+
+Lixo is only available below 500 Elo.
+
+Champion starts at 1340 Elo.
+
+---
+
+# 12. RR System
+
+Every normal division has:
+
+```text
+0–100 RR
+```
+
+RR is derived from the player's Elo within the current 40-Elo division.
+
+Formula:
+
+```text
+RR = floor(((Elo - DivisionFloor) / 40) * 100)
+```
+
+Clamp RR to:
+
+```text
+0–99
+```
+
+Never display 100 RR.
+
+## Placement Players
+
+The hidden starting Elo is:
+
+```text
+520 Elo
+```
+
+A new player is **Unranked**, so they do not receive RR while completing placements.
+
+After the fifth placement match, calculate the player's rank from their resulting Elo using the normal thresholds.
+
+If the resulting Elo is 520, for example:
+
+```text
+520 Elo → Iron I, 50 RR
+```
+
+Thus 520 Elo remains the canonical baseline for the ranking system, but it is no longer an automatic starting rank.
+
+The player must complete all 5 placement matches before this rank becomes visible.
+
+## Examples
+
+Iron I:
+
+```text
+500 Elo → Iron I, 0 RR
+510 Elo → Iron I, 25 RR
+520 Elo → Iron I, 50 RR
+530 Elo → Iron I, 75 RR
+539 Elo → Iron I, 97 RR
+540 Elo → Iron II, 0 RR
+```
+
+Gold I:
+
+```text
+860 Elo → Gold I, 0 RR
+870 Elo → Gold I, 25 RR
+880 Elo → Gold I, 50 RR
+890 Elo → Gold I, 75 RR
+900 Elo → Gold II, 0 RR
+```
+
+---
+
+# 13. Placement Matches
+
+Every new player must complete exactly **5 placement matches** before becoming ranked.
+
+## Placement State
+
+A player is considered unranked while:
+
+```text
+placement_matches_played < 5
+```
+
+Display:
+
+```text
+Unranked
+Placement Matches: X/5
+```
+
+Do not display a normal tier, division, or RR during placements.
+
+The player's hidden/current Elo is still updated normally after every placement match using the standard 2v2 Elo system.
+
+## Placement Match Processing
+
+Placement matches use exactly the same Elo rules as regular matches:
+
+- Starting Elo = 520
+- K-factor = 32
+- Team Elo = average of the two teammates
+- Expected probability uses the standard Elo formula
+- Same Elo delta for both teammates
+- Upsets naturally produce larger Elo changes
+- Score margin does not affect Elo
+
+There is no special placement multiplier.
+
+After each placement match:
+
+```text
+placement_matches_played += 1
+```
+
+After the fifth placement match:
+
+```text
+placement_complete = true
+```
+
+Then calculate the player's initial visible rank and RR from their resulting Elo.
+
+## Example
+
+A player starts:
+
+```text
+Unranked
+520 Elo
+0/5 placements
+```
+
+After five matches their Elo is:
+
+```text
+548 Elo
+```
+
+Their initial rank becomes:
+
+```text
+Iron II
+20 RR
+548 Elo
+```
+
+If their final placement Elo is:
+
+```text
+520 Elo
+```
+
+their initial rank becomes:
+
+```text
+Iron I
+50 RR
+520 Elo
+```
+
+If their final placement Elo is:
+
+```text
+480 Elo
+```
+
+their initial rank becomes:
+
+```text
+Lixo
+0 RR
+480 Elo
+```
+
+If their final placement Elo is:
+
+```text
+1340+ Elo
+```
+
+their initial rank becomes:
+
+```text
+Champion
+0 RR
+```
+
+There is no placement-specific rank floor. A player's first rank is entirely determined by their Elo after the fifth placement match.
+
+## Placement UI
+
+The player profile should clearly show:
+
+```text
+Unranked
+
+Placement Matches
+3 / 5
+
+Current Elo
+548
+```
+
+After the fifth placement:
+
+```text
+Placement Complete
+
+Iron II
+20 RR
+
+548 Elo
+```
+
+The transition from Unranked to the initial rank should be presented as a clear result/reveal.
+
+## Placement Restrictions
+
+While unranked:
+
+- Do not show a Demotion Shield.
+- Do not show a demotion warning.
+- Do not process demotions.
+- Do not show normal RR progression.
+- Do not treat the player as ranked in rank-based UI filters unless explicitly requested.
+
+Placement matches still count toward:
+
+- Wins
+- Losses
+- Win rate
+- Total matches
+- Teammate statistics
+- Elo history
+
+## Placement Match History
+
+Placement matches should be stored exactly like regular matches and clearly marked as placement matches.
+
+Add:
+
+```text
+is_placement_match
+```
+
+to the match model.
+
+A placement match should show:
+
+```text
+Placement Match 3/5
+```
+
+in the match history.
+
+Once the fifth placement match is complete, subsequent matches are regular ranked matches.
+
+---
+
+# 14. Rank Ups
+
+Rank-ups happen automatically when Elo reaches the next division threshold.
+
+There is no promotion match.
+
+There is no promotion match.
+
+Example:
+
+```text
+Iron I
+539 Elo
+97 RR
+```
+
+If the player's match increases their Elo to:
+
+```text
+545 Elo
+```
+
+their resulting rank is:
+
+```text
+Iron II
+12 RR
+545 Elo
+```
+
+The same applies across all divisions and tiers.
+
+---
+
+# 14. Lixo
+
+Lixo is only available below:
+
+```text
+500 Elo
+```
+
+Lixo has:
+
+- No division
+- 0 RR
+- No internal RR progression
+
+Example:
+
+```text
+499 Elo → Lixo
+```
+
+At:
+
+```text
+500 Elo → Iron I, 0 RR
+```
+
+---
+
+# 15. Champion
+
+Champion starts at:
+
+```text
+1340 Elo
+```
+
+Champion has:
+
+- No division
+- 0 RR
+
+Examples:
+
+```text
+1340 Elo → Champion
+1400 Elo → Champion
+1500 Elo → Champion
+```
+
+For leaderboard purposes, Champion players should be ordered by Elo.
+
+---
+
+# 18. Demotion Shield
+
+Each **ranked** player can have a **one-use Demotion Shield**.
+
+Players who are still Unranked and completing placement matches do not have a Demotion Shield.
+
+The shield protects the player's **visible rank**, not their Elo.
+
+The Elo calculation must never be altered because of the shield.
+
+## Trigger
+
+When a player reaches or falls below the Elo floor of their current division, the Demotion Shield activates instead of immediately changing the visible rank.
+
+Example:
+
+```text
+Gold II
+900 Elo
+0 RR
+```
+
+The player loses and their Elo becomes:
+
+```text
+894 Elo
+```
+
+Normally this would be:
+
+```text
+Gold I
+85 RR
+```
+
+With the Demotion Shield:
+
+```text
+Visible Rank: Gold II
+RR: 0
+Underlying Elo: 894
+Demotion Shield: Active
+Demotion Pending: true
+```
+
+The underlying Elo must remain 894.
+
+---
+
+# 19. Demotion Match
+
+After a Demotion Shield activates, the next match is a **demotion match**.
+
+## If the player wins
+
+- The player retains the protected visible rank.
+- The Demotion Shield is consumed.
+- `demotion_shield_active = false`
+- `demotion_pending = false`
+- The player's Elo remains whatever the normal Elo calculation produced.
+- After the shield is consumed, future rank calculations use the normal Elo thresholds.
+
+## If the player loses
+
+- The player is immediately demoted to the next lower division.
+- The Demotion Shield is consumed.
+- `demotion_shield_active = false`
+- `demotion_pending = false`
+- The player's Elo remains the normally calculated Elo.
+
+Do not modify Elo specifically to force a rank outcome.
+
+---
+
+# 20. Demotion Floor Cases
+
+For a player in:
+
+```text
+Iron I
+```
+
+there is no lower normal division.
+
+If their Elo falls below 500, their rank becomes:
+
+```text
+Lixo
+```
+
+The Demotion Shield must not prevent a player from eventually reaching Lixo.
+
+For a player in Lixo, no demotion exists.
+
+For Champion, there is no Demotion Shield requirement unless explicitly added later; Champion has no division below it within the Champion tier, but falling below 1340 Elo follows the normal threshold system into Emerald III.
+
+---
+
+# 21. Rank State
+
+Because Demotion Shield can temporarily make visible rank differ from raw Elo, store rank state explicitly.
+
+Recommended fields:
+
+```text
+visible_rank
+rr
+demotion_shield_active
+demotion_pending
+```
+
+Do not calculate the displayed rank purely from `current_elo` in the frontend.
+
+The backend must be authoritative.
+
+---
+
+# 22. Player Statistics
+
+Each player profile should show:
+
+## Core
+
+- Current Rank
+- RR
+- Current Elo
+- Peak Elo
+- Wins
+- Losses
+- Total Matches
+- Win %
+
+## Streaks
+
+- Current Win Streak
+- Best Win Streak
+- Current Loss Streak
+
+## Elo statistics
+
+- Biggest Elo Gain
+- Biggest Elo Loss
+
+## Teammate statistics
+
+- Best Teammate
+- Worst Teammate
+
+---
+
+# 23. Best Teammate
+
+For every other player, calculate historical performance when the two players were teammates.
+
+For each teammate:
+
+```text
+matches_together
+wins_together
+losses_together
+win_rate_together
+```
+
+Primary metric:
+
+```text
+Teammate Win Rate
+```
+
+Only include teammates with at least:
+
+```text
+5 matches together
+```
+
+This avoids a single match determining Best/Worst Teammate.
+
+Example:
+
+| Teammate | Matches | Wins | Losses | Win Rate |
+|---|---:|---:|---:|---:|
+| João | 20 | 15 | 5 | 75% |
+| Pedro | 30 | 18 | 12 | 60% |
+| Rui | 10 | 3 | 7 | 30% |
+
+Best Teammate:
+
+```text
+João — 75%
+```
+
+---
+
+# 24. Worst Teammate
+
+Worst Teammate uses exactly the same dataset and minimum-match requirement.
+
+The Worst Teammate is the teammate with the lowest historical win rate when playing together.
+
+Example:
+
+```text
+Worst Teammate
+Rui — 30%
+10 matches together
+```
+
+If nobody has played at least 5 matches together:
+
+```text
+Best Teammate: —
+Worst Teammate: —
+```
+
+These statistics are descriptive historical statistics only.
+
+---
+
+# 25. Teammate Tie Breaking
+
+When two teammates have the same win rate:
+
+1. Prefer the teammate with more matches together.
+2. If still tied, prefer the teammate with more wins.
+3. If still tied, sort alphabetically by player name.
+
+This makes Best/Worst Teammate deterministic.
+
+---
+
+# 26. Teammate Statistics Table
+
+Each player profile should contain a full teammate table:
+
+| Teammate | Matches | Wins | Losses | Win % |
+|---|---:|---:|---:|---:|
+| Player A | 15 | 10 | 5 | 66.7% |
+| Player B | 12 | 8 | 4 | 66.7% |
+| Player C | 8 | 2 | 6 | 25.0% |
+
+At the top of the section display:
+
+```text
+Best Teammate
+Player A — 66.7%
+
+Worst Teammate
+Player C — 25.0%
+```
+
+---
+
+# 27. Leaderboard
+
+The main leaderboard should show:
+
+| Rank | Player | Elo | RR | W | L | Win % |
+|---|---|---:|---:|---:|---:|---:|
+
+Primary ordering:
+
+```text
+Elo descending
+```
+
+Useful filters:
+
+- All Players
+- Active Players
+- Tier
+- Rank
+
+Do not use an arbitrary separate leaderboard score.
+
+---
+
+# 28. Match History
+
+Every match must record:
+
+- ID
+- Date/time
+- Team A players
+- Team B players
+- Winner
+- Optional actual score
+- Team A Elo before match
+- Team B Elo before match
+- Expected Team A probability
+- Elo delta
+- Individual Elo before/after
+- Rank before/after
+- RR before/after
+- Demotion Shield state before/after
+- Optional note
+- Created timestamp
+
+Match records should be treated as immutable through the normal UI.
+
+---
+
+# 29. Database Schema
+
+## `players`
+
+```text
+id
+display_name
+starting_elo
+current_elo
+peak_elo
+visible_rank
+rr
+demotion_shield_active
+demotion_pending
+placement_matches_played
+placement_complete
+active
+created_at
+```
+
+Defaults for a new player:
+
+```text
+starting_elo = 520
+current_elo = 520
+peak_elo = 520
+visible_rank = 'Unranked'
+rr = null
+demotion_shield_active = false
+demotion_pending = false
+placement_matches_played = 0
+placement_complete = false
+active = true
+```
+
+After the fifth placement match:
+
+```text
+placement_matches_played = 5
+placement_complete = true
+```
+
+At that point, `visible_rank` and `rr` are initialized from the player's resulting Elo.
+
+## `matches`
+
+```text
+id
+played_at
+team_a_player_1
+team_a_player_2
+team_b_player_1
+team_b_player_2
+winner
+score_a
+score_b
+team_a_elo
+team_b_elo
+expected_a
+elo_delta
+created_at
+note
+is_placement_match
+placement_number
+```
+
+`score_a` and `score_b` are optional and have no impact on Elo.
+
+For placement matches:
+
+```text
+is_placement_match = true
+placement_number = 1..5
+```
+
+For regular ranked matches:
+
+```text
+is_placement_match = false
+placement_number = null
+```
+
+## `rating_events`
+
+```text
+id
+match_id
+player_id
+elo_before
+elo_delta
+elo_after
+rank_before
+rank_after
+rr_before
+rr_after
+demotion_shield_before
+demotion_shield_after
+demotion_pending_before
+demotion_pending_after
+placement_matches_before
+placement_matches_after
+placement_complete_before
+placement_complete_after
+created_at
+```
+
+Constraint:
+
+```text
+UNIQUE(match_id, player_id)
+```
+
+---
+
+# 30. Server-Side Match RPC
+
+Create a Supabase database function/RPC:
+
+```text
+record_match(...)
+```
+
+It must:
+
+1. Validate all four players.
+2. Ensure the four players are unique.
+3. Ensure all players are active.
+4. Read authoritative current Elo values.
+5. Read current rank/shield state.
+6. Calculate Team A Elo.
+7. Calculate Team B Elo.
+8. Calculate expected probabilities.
+9. Calculate Elo changes.
+10. Apply identical team deltas to both teammates.
+11. Update peak Elo values.
+12. Increment placement count when applicable.
+13. Determine whether the player has completed their fifth placement.
+14. Keep unranked players as `Unranked` with no RR while placements remain incomplete.
+15. Reveal the initial rank and RR after placement match 5.
+16. Process rank changes for already-ranked players.
+17. Process Demotion Shield only for already-ranked players.
+18. Calculate resulting RR.
+19. Insert the match.
+16. Insert four rating events.
+17. Commit everything atomically.
+
+If any step fails, roll back the entire operation.
+
+Do not trust Elo values supplied by the Angular client.
+
+---
+
+# 31. Dashboard
+
+The dashboard should contain:
+
+## Leaderboard
+
+Current standings.
+
+## Recent Matches
+
+Latest matches with:
+
+- Teams
+- Winner
+- Elo changes
+- Date
+
+## Quick Stats
+
+Examples:
+
+```text
+Total Players
+Total Matches
+Average Elo
+Highest Elo
+Most Wins
+Highest Win Rate
+```
+
+## Main Action
+
+```text
+Record Match
+```
+
+If the group contains players still completing placements, clearly indicate their placement status in relevant player lists.
+
+Example:
+
+```text
+Unranked — 3/5 placements
+```
+
+---
+
+# 32. Record Match Screen
+
+Allow the user to select:
+
+```text
+Team A Player 1
+Team A Player 2
+
+Team B Player 1
+Team B Player 2
+```
+
+All four players must be distinct.
+
+Winner:
+
+```text
+Team A
+Team B
+```
+
+Optional:
+
+```text
+Score
+Date/time
+Note
+```
+
+Before saving, show a confirmation preview.
+
+Example:
+
+```text
+Team A
+Average Elo: 542
+
+Team B
+Average Elo: 587
+
+Expected Team A Win Probability
+43.7%
+
+Projected Elo Change
++18 / -18
+```
+
+Also show projected changes to:
+
+- Elo
+- Rank
+- RR
+- Demotion Shield state
+
+---
+
+# 33. Random Team Generator
+
+Provide:
+
+```text
+Generate Teams
+```
+
+Randomly assign active players into 2v2 teams.
+
+Example:
+
+```text
+Team A
+Player 1
+Player 7
+
+Team B
+Player 3
+Player 5
+```
+
+Optional future enhancement:
+
+- Avoid recently repeated teammate pairings.
+- Avoid repeating identical teams.
+
+Random team generation has no impact on Elo.
+
+---
+
+# 34. Player Profile
+
+For a ranked player, display:
+
+```text
+Player Name
+
+Iron I
+50 RR
+
+520 Elo
+Peak: 520 Elo
+```
+
+For an unranked player, display:
+
+```text
+Player Name
+
+Unranked
+
+Placement Matches
+3 / 5
+
+520 Elo
+Peak: 548 Elo
+```
+
+Core statistics:
+
+```text
+Wins
+Losses
+Win Rate
+Total Matches
+```
+
+Teammate summary:
+
+```text
+Best Teammate
+Player A — 72.7%
+
+Worst Teammate
+Player C — 28.6%
+```
+
+Also display:
+
+- Elo history chart
+- Match history
+- Teammate statistics
+- Streak statistics
+
+---
+
+# 35. Angular Material UI
+
+Use Angular Material components including:
+
+- `mat-toolbar`
+- `mat-card`
+- `mat-table`
+- `mat-chip`
+- `mat-button`
+- `mat-icon-button`
+- `mat-dialog`
+- `mat-form-field`
+- `mat-select`
+- `mat-autocomplete`
+- `mat-snack-bar`
+- `mat-tabs`
+- `mat-progress-bar`
+- `mat-divider`
+
+The UI should feel:
+
+- Competitive
+- Sporty
+- Game-like
+- Compact
+- Clear
+- Mobile-friendly
+
+Rank and RR should be visually prominent.
+
+---
+
+# 36. RR Progress Bar
+
+For normal divisions, show RR as a progress bar from 0 to 100.
+
+Example:
+
+```text
+Iron I
+50 RR
+
+██████████░░░░░░░░░░
+```
+
+Do not display 100 RR.
+
+At a rank-up threshold, immediately transition to:
+
+```text
+Iron II
+0 RR
+```
+
+Unranked, Lixo, and Champion should not show a normal RR progress bar.
+
+Unranked should instead show placement progress:
+
+```text
+3 / 5 Placement Matches
+```
+
+
+---
+
+# 37. Rank Display
+
+Use a consistent rank object in the application.
+
+Example:
+
+```typescript
+interface RankState {
+  tier: RankTier | 'Unranked';
+  division: RankDivision | null;
+  rr: number | null;
+}
+```
+
+Where:
+
+```typescript
+type RankTier =
+  | 'Lixo'
+  | 'Iron'
+  | 'Bronze'
+  | 'Silver'
+  | 'Gold'
+  | 'Platinum'
+  | 'Diamond'
+  | 'Emerald'
+  | 'Champion';
+
+type RankDivision = 'I' | 'II' | 'III' | null;
+```
+
+---
+
+# 38. Rank Calculation
+
+Create a single shared rank-calculation service/module.
+
+The rank calculation should only produce a normal rank when `placement_complete = true`.
+
+While placements are incomplete, the visible rank must be `Unranked` regardless of current Elo.
+
+It should contain the authoritative thresholds.
+
+Conceptually:
+
+```text
+if elo < 500:
+    Lixo
+
+else if elo < 540:
+    Iron I
+
+else if elo < 580:
+    Iron II
+
+...
+
+else if elo < 1340:
+    Emerald III
+
+else:
+    Champion
+```
+
+For normal divisions:
+
+```text
+RR = floor(((elo - divisionFloor) / 40) * 100)
+```
+
+Clamp to:
+
+```text
+0–99
+```
+
+Do not duplicate rank logic across Angular components.
+
+The backend must implement the same rules.
+
+---
+
+# 39. Starting State Example
+
+A newly created player must appear as:
+
+```text
+Player: New Player
+Elo: 520
+Rank: Unranked
+RR: —
+Peak Elo: 520
+Wins: 0
+Losses: 0
+Win Rate: 0%
+Best Teammate: —
+Worst Teammate: —
+Placement Matches: 0 / 5
+Demotion Shield: Inactive
+```
+
+After five placement matches, the player's final Elo determines their initial rank.
+
+Example:
+
+```text
+Final placement Elo: 520
+
+Rank: Iron I
+RR: 50
+Placement Matches: 5 / 5
+```
+
+This is the canonical placement flow.
+
+---
+
+# 40. Important Boundary Examples
+
+Implement tests for these exact cases:
+
+```text
+499 Elo  → Lixo, 0 RR
+500 Elo  → Iron I, 0 RR
+520 Elo  → Iron I, 50 RR (after placements)
+539 Elo  → Iron I, 97 RR (after placements)
+540 Elo  → Iron II, 0 RR (after placements)
+
+580 Elo  → Iron III, 0 RR
+620 Elo  → Bronze I, 0 RR
+
+860 Elo  → Gold I, 0 RR
+880 Elo  → Gold I, 50 RR
+900 Elo  → Gold II, 0 RR
+
+980 Elo  → Platinum I, 0 RR
+1000 Elo → Platinum I, 50 RR
+
+1220 Elo → Emerald I, 0 RR
+1300 Elo → Emerald III, 0 RR
+1340 Elo → Champion, 0 RR
+```
+
+---
+
+# 41. Testing Requirements
+
+Create automated tests covering:
+
+## Elo
+
+- Starting Elo is 520.
+- K-factor is 32.
+- Every new player starts Unranked.
+- A player remains Unranked until exactly 5 placement matches are completed.
+- Placement matches use the normal Elo formula.
+
+- Equal teams produce equal/opposite deltas.
+- Upsets produce larger changes.
+- Both teammates receive the same delta.
+- Team Elo uses pre-match Elo.
+- Score margin does not affect Elo.
+
+## Rank
+
+- Every threshold.
+- Lixo below 500.
+- New player is Unranked before placements are complete.
+- Rank is revealed after the fifth placement match.
+- Final placement Elo determines the initial rank.
+
+- Iron I begins at 500.
+- Champion begins at 1340.
+- Correct tier/division assignment.
+
+## RR
+
+- 500 Elo = 0 RR.
+- 520 Elo = 50 RR.
+- 539 Elo = 97 RR.
+- 540 Elo = next division at 0 RR.
+- RR never displays 100.
+- Lixo and Champion have no RR progression.
+
+## Placement
+
+- Placement count starts at 0.
+- Placement count increments exactly once per completed placement match.
+- A player becomes ranked after the fifth placement match.
+- Placement matches contribute to W/L, win rate, Elo history, and teammate statistics.
+- Placement matches cannot trigger demotion.
+- Placement matches do not use a Demotion Shield.
+- The initial rank and RR are derived from Elo after match 5.
+
+## Demotion Shield
+
+- Shield activates at the division floor.
+- Elo continues changing normally.
+- Visible rank can temporarily differ from Elo-derived rank.
+- Winning the demotion match consumes the shield.
+- Losing the demotion match causes demotion.
+- Shield never changes the Elo calculation.
+- Iron I can eventually demote to Lixo.
+- Lixo cannot demote further.
+
+## Teammates
+
+- Correct teammate match count.
+- Correct teammate W/L.
+- Correct teammate win rate.
+- Five-match minimum.
+- Correct Best Teammate.
+- Correct Worst Teammate.
+- Deterministic tie-breaking.
+
+## Transaction Integrity
+
+A failed match operation must not partially modify player Elo, ranks, shields, or history.
+
+---
+
+# 42. Deployment
+
+Deploy the Angular application to GitHub Pages using GitHub Actions.
+
+Supabase configuration should use environment variables.
+
+Only public Supabase credentials intended for browser use may be included in the frontend.
+
+Never include:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+or any other secret server credential in the Angular application.
+
+---
+
+# 43. Suggested Application Structure
+
+Use a clean Angular feature structure such as:
+
+```text
+src/app/
+  core/
+    models/
+    services/
+    guards/
+  shared/
+    components/
+    pipes/
+  features/
+    dashboard/
+    leaderboard/
+    players/
+    matches/
+    random-teams/
+  rank/
+    rank.service.ts
+    rank.constants.ts
+    elo.service.ts
+    teammate-stats.service.ts
+```
+
+Authentication-related modules should not be created.
+
+---
+
+# 44. UX Requirements
+
+The application should make the important information immediately understandable.
+
+For each player, prominently show:
+
+```text
+Rank
+RR
+Elo
+```
+
+Use clear visual distinction between:
+
+- Rank-up
+- Demotion
+- Demotion Shield active
+- Demotion pending
+- Win
+- Loss
+
+After recording a match, show a concise result summary:
+
+```text
+Match Recorded
+
++18 Elo
+Iron I → Iron II
+50 RR → 12 RR
+```
+
+For each of the four players, show their individual result.
+
+---
+
+# 45. Data Integrity Rules
+
+The client must never be able to arbitrarily submit:
+
+- Elo
+- Rank
+- RR
+- Peak Elo
+- Elo delta
+- Demotion Shield state
+
+These are derived/authoritative fields.
+
+The client submits match information such as:
+
+```text
+players
+winner
+score
+date
+note
+```
+
+The backend calculates the resulting ratings and state.
+
+---
+
+# 46. Final Business Rules Summary
+
+The implementation must follow these rules exactly:
+
+```text
+Starting Elo = 520
+Starting Rank = Unranked
+Placement Matches Required = 5
+Starting RR = not displayed during placements
+
+After 5 placement matches:
+Rank and RR are derived from current Elo.
+
+At 520 Elo after placements:
+Iron I, 50 RR
+
+Lixo = Elo < 500
+
+Iron I = 500–539
+Iron II = 540–579
+Iron III = 580–619
+
+Bronze I = 620–659
+Bronze II = 660–699
+Bronze III = 700–739
+
+Silver I = 740–779
+Silver II = 780–819
+Silver III = 820–859
+
+Gold I = 860–899
+Gold II = 900–939
+Gold III = 940–979
+
+Platinum I = 980–1019
+Platinum II = 1020–1059
+Platinum III = 1060–1099
+
+Diamond I = 1100–1139
+Diamond II = 1140–1179
+Diamond III = 1180–1219
+
+Emerald I = 1220–1259
+Emerald II = 1260–1299
+Emerald III = 1300–1339
+
+Champion = 1340+
+
+Normal division size = 40 Elo
+RR = 0–99
+Starting RR = 50
+
+K-factor = 32
+Team Elo = average of teammates
+Same Elo delta for both teammates
+Upsets naturally produce larger Elo changes
+Score margin does not affect Elo
+
+Lixo has no divisions
+Champion has no divisions
+
+Demotion Shield = one-use
+Shield protects visible rank, not Elo
+
+No authentication
+```
+
+---
+
+# 47. Primary Objective for the App Generation AI
+
+Generate a complete, working Angular application implementing the specification above.
+
+Prioritize:
+
+1. Correct Elo calculations.
+2. Correct rank/RR calculations.
+3. Correct placement flow: **Unranked → 5 placement matches → initial rank**.
+4. Correct starting hidden Elo of **520**.
+5. Correct result of **Iron I / 50 RR when final placement Elo is 520**.
+6. Correct Demotion Shield behavior after a player is ranked.
+7. Correct 2v2 team handling.
+8. Correct Best/Worst Teammate statistics.
+9. Atomic server-side match processing.
+10. Clean, responsive Angular Material UI.
+11. Simple player management without authentication.
+12. Reliable GitHub Pages deployment.
+
+Do not simplify or alter the ranking rules without explicit instruction.
