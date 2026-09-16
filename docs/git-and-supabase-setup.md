@@ -14,4 +14,6 @@ git push -u origin main
 In the GitHub repository settings, add `SUPABASE_URL` and
 `SUPABASE_ANON_KEY` as Actions secrets. These are the only values injected into
 the browser build. Apply the SQL migration in `supabase/migrations` before
-using the deployed application.
+using the deployed application. If the initial migration was already applied,
+also apply `20260916194000_harden_function_security.sql`; it fixes function
+search paths and removes unnecessary authenticated RPC access.

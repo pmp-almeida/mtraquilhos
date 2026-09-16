@@ -67,7 +67,7 @@ create index matches_played_at_idx on public.matches (played_at desc);
 create index rating_events_player_idx on public.rating_events (player_id, created_at desc);
 
 create or replace function public.rank_for_elo(p_elo integer)
-returns jsonb language sql immutable as $$
+returns jsonb language sql immutable set search_path = pg_catalog as $$
   select case
     when p_elo < 500 then jsonb_build_object('tier', 'Lixo', 'division', null, 'rr', null, 'label', 'Lixo')
     when p_elo >= 1340 then jsonb_build_object('tier', 'Champion', 'division', null, 'rr', null, 'label', 'Champion')
@@ -91,7 +91,7 @@ create or replace function public.record_match(
   p_team_b_player_1 uuid, p_team_b_player_2 uuid,
   p_winner char(1), p_score_a integer default null, p_score_b integer default null,
   p_played_at timestamptz default now(), p_note text default null
-) returns jsonb language plpgsql security definer set search_path = public as $$
+) returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
 declare
   v_ids uuid[] := array[p_team_a_player_1, p_team_a_player_2, p_team_b_player_1, p_team_b_player_2];
   v_unique_count integer;
@@ -166,4 +166,5 @@ create policy players_public_read on public.players for select using (true);
 create policy matches_public_read on public.matches for select using (true);
 create policy rating_events_public_read on public.rating_events for select using (true);
 revoke insert, update, delete on public.players, public.matches, public.rating_events from anon, authenticated;
-grant execute on function public.record_match(uuid, uuid, uuid, uuid, char, integer, integer, timestamptz, text) to anon, authenticated;
+revoke execute on function public.record_match(uuid, uuid, uuid, uuid, char, integer, integer, timestamptz, text) from public, authenticated;
+grant execute on function public.record_match(uuid, uuid, uuid, uuid, char, integer, integer, timestamptz, text) to anon;

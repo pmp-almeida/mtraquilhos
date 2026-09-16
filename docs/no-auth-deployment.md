@@ -14,5 +14,11 @@ anonymous key. Never add `SUPABASE_SERVICE_ROLE_KEY` or another secret to
 environment files consumed by Angular. Derived player ratings and history must
 be written only by the server-authoritative `record_match` RPC.
 
+The RPC is intentionally `SECURITY DEFINER` because the public browser client
+must not receive direct table-write privileges. Its `search_path` is fixed to
+`pg_catalog, public`, and execution is granted only to `anon`; the Supabase
+security advisor may still report anonymous execution as a warning because
+public match submission is an intentional part of this no-auth deployment.
+
 GitHub Pages hosts the static Angular application; Supabase hosts PostgreSQL,
 the API, row-level policies, and the match-processing RPC.
