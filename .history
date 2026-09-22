@@ -366,3 +366,36 @@ failed run (it's a separate, later statement in the same file, and the
 ALTER TABLE error stopped execution before it), so the database is still
 correctly on the `20260922155000` fix at a threshold of 5 -- re-running the
 corrected `20260922160000` is the only remaining step.
+
+---
+
+## 2026-09-22 — Migration applied directly via the Supabase MCP connector
+
+Pedro connected a Supabase MCP client mid-session. Used it to inspect the
+live `TableFootball` project (`vhcxkacfxffzqgctxmng`) directly instead of
+reasoning from static file review:
+
+- Confirmed `20260922160000`'s earlier failed run had rolled back
+  completely and atomically (all original constraints and the threshold-5,
+  bug-fixed `record_match` from `20260922155000` were still intact,
+  unchanged) -- the Supabase SQL editor evidently wraps a pasted multi-
+  statement script in one implicit transaction, so the mid-script error
+  undid the whole thing rather than leaving a partial state.
+- Applied the corrected `20260922160000_placement_matches_ten.sql` via
+  `apply_migration`. Verified afterward via direct query:
+  `players_placement_matches_played_check` and
+  `players_placement_complete_check` now both read `10`; the old unnamed
+  `players_check` (threshold 5) is gone.
+- Confirmed Duarte's row (the player who hit the original 400) is
+  untouched and clean: still `4/10` placement matches, no orphaned data
+  from the earlier failed attempts.
+- Ran the security/performance advisors as a sanity check post-DDL-change.
+  Nothing new: the SECURITY warnings are `record_match`/`start_season`
+  being anon-executable `SECURITY DEFINER` functions, which is intentional
+  per the no-auth model (see `docs/no-auth-deployment.md`); the
+  PERFORMANCE notes (a few unindexed match-participant foreign keys, two
+  currently-unused indexes) are pre-existing and minor at this data
+  volume, not caused by this change.
+
+No further action needed from Pedro -- the fix is live. He can retry
+recording Duarte's match in the app.
