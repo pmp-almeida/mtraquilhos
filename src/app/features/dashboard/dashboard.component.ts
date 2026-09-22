@@ -26,7 +26,8 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
       <h1>Play. Rank up. Repeat.</h1>
       <p class="subtitle">Track Elo, ranks, placements, and every 2v2 match &mdash; Valorant-style tiers, RR, and Demotion Shields for a friendly office ladder.</p>
       <div class="hero-actions">
-        <a mat-flat-button color="primary" routerLink="/matches/record"><mat-icon>add_circle</mat-icon>Record a match</a>
+        <a mat-flat-button color="primary" routerLink="/live"><mat-icon>bolt</mat-icon>Live Match</a>
+        <a mat-stroked-button routerLink="/matches/record"><mat-icon>add_circle</mat-icon>Record a match</a>
         <a mat-stroked-button routerLink="/teams"><mat-icon>shuffle</mat-icon>Generate teams</a>
         <a mat-button routerLink="/players"><mat-icon>group</mat-icon>Manage players</a>
       </div>

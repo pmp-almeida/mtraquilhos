@@ -441,3 +441,55 @@ live project via the Supabase MCP connector and verified by querying
 53.
 
 Pedro can retry recording that match now.
+
+## 2026-09-22 — Feature: Live Mode
+
+Added a new "Live Mode" screen so players can score a match from a single
+shared phone/device during play, instead of only entering the result
+afterward. Requirements were clarified with Pedro up front:
+
+- One shared scoreboard device (not per-player synced multi-device).
+- Auto-suggest finishing once a team hits the target score and is ahead,
+  but require an explicit confirm tap -- never auto-submit.
+- No "live elsewhere" visibility (e.g. a dashboard banner showing an
+  in-progress match) for now -- explicitly deferred to a future pass per
+  Pedro: "This is an interesting feature that should definitely be
+  implemented in the future, but not now. Make a note of it but for now
+  apply option 1." Recorded as a deferred idea in spec addendum section 54.
+- In-progress-match localStorage persistence (survive refresh/phone lock)
+  confirmed in scope ("Worth doing").
+
+New files:
+- `src/app/features/live-match/live-match.component.ts` -- two-phase
+  component (setup form, then a full-viewport tap-to-score stage). Reuses
+  `MatchService.record` (the same `record_match` RPC Record Match calls)
+  and `EloService.project` for the pre-confirm Elo projection, so the
+  score itself never drives Elo -- only `winner` does, per section 9.
+  Persists in-progress state to `localStorage` under `tf-live-match-v1`,
+  discarding it on load if any of the four saved players is no longer
+  active.
+
+Wiring:
+- New route `/live` in `app.routes.ts`.
+- Toolbar primary CTA and the dashboard's primary hero button now point
+  to Live Match; Record Match moved into the regular nav links / mobile
+  menu and became the dashboard's secondary button, so it's still one tap
+  away for after-the-fact recording.
+
+Also bundled in this commit: a leftover bug found while touching this
+area -- `rank-badge.component.ts`'s Unranked label still hardcoded
+`/5` instead of using `PLACEMENT_MATCHES_REQUIRED`, missed by the
+section-52 sweep because it's a template literal, not a reference to the
+constant. Fixed to read from the constant; confirmed via grep it was the
+only remaining `/5` literal in `src/`.
+
+Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean). A full
+`ng build` could not be run from this environment this session -- the
+project's `node_modules` here has Windows-native esbuild binaries
+(`@esbuild/win32-x64`) mounted into a Linux shell, so `ng build` fails on
+a platform mismatch unrelated to this change. Left for Pedro's own machine
+or for the upcoming GitHub Pages bundle-budget investigation.
+
+Spec doc: new addendum section 54 ("Live Mode"), covering the flow,
+persistence, navigation changes, and the deferred "Live now" indicator
+note above.

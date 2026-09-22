@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { RankState } from '../../../core/models/rank-state';
-import { RANK_COLORS } from '../../../rank/rank.constants';
+import { PLACEMENT_MATCHES_REQUIRED, RANK_COLORS } from '../../../rank/rank.constants';
 
 /**
  * Shared rank/tier badge used across the leaderboard, players list, player
@@ -49,7 +49,7 @@ export class RankBadgeComponent {
     const state = this.rank();
     if (state.tier === 'Unranked') {
       const played = this.placementMatches();
-      return played !== null ? `Unranked · ${played}/5` : 'Unranked';
+      return played !== null ? `Unranked · ${played}/${PLACEMENT_MATCHES_REQUIRED}` : 'Unranked';
     }
     return state.division ? `${state.tier} ${state.division}` : state.tier;
   });
