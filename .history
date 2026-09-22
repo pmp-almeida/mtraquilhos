@@ -324,3 +324,45 @@ don't want 10 placement matches.
 
 - `ng test` still not run in this sandbox (see the original entry above);
   the same recommendation to run it locally applies to this change too.
+
+---
+
+## 2026-09-22 — Follow-up: 20260922160000 failed to apply, constraint-name lookup fixed
+
+Pedro applied `20260922155000_...constraint_race.sql` successfully, then hit
+this running `20260922160000_placement_matches_ten.sql`:
+
+```
+ERROR: 42710: constraint "players_placement_matches_played_check" for
+relation "players" already exists
+```
+
+**Root cause:** the migration's dynamic constraint lookup matched on the
+literal text `between` inside `pg_get_constraintdef()`'s output. Postgres
+deparses `BETWEEN x AND y` back into `(col >= x) AND (col <= y)` when it
+reconstructs a constraint's definition -- the word "between" never
+survives that round-trip. So the lookup's first pattern never matched the
+original `placement_matches_played between 0 and 5` constraint, leaving it
+in place; the migration's own `add constraint
+players_placement_matches_played_check` then collided with it, because
+Postgres auto-names an unnamed column-level CHECK as
+`<table>_<column>_check` -- exactly the name this migration also chose.
+(The lookup's *second* pattern, matching `placement_complete = (...)`, did
+fire and dropped that constraint successfully -- so the failure was
+partial, and the two ADD CONSTRAINT clauses being one atomic ALTER TABLE
+statement meant neither new constraint got created.)
+
+**Fix, in place in `20260922160000_placement_matches_ten.sql`:** the lookup
+now matches any check constraint on `players` whose definition mentions the
+column name `placement_matches_played` at all, regardless of how Postgres
+chose to spell the comparison. This one pattern catches both of the
+original constraints, and is safe to re-run (it will find, and idempotently
+replace, the constraints this same migration adds) and safe to run again
+against a database already left in the partial state above by the earlier,
+broken attempt (it simply finds one constraint to drop instead of two).
+
+No other file changed. `record_match` was never reached by the earlier
+failed run (it's a separate, later statement in the same file, and the
+ALTER TABLE error stopped execution before it), so the database is still
+correctly on the `20260922155000` fix at a threshold of 5 -- re-running the
+corrected `20260922160000` is the only remaining step.

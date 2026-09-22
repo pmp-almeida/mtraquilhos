@@ -15,7 +15,26 @@
 -- The two players-table CHECK constraints from the initial schema
 -- migration were left unnamed, so Postgres auto-generated their names.
 -- Rather than hardcode a guess at those names, this migration looks them
--- up by their definition text and drops whichever ones it actually finds.
+-- up dynamically and drops whichever ones it actually finds.
+--
+-- NOTE: an earlier version of this migration matched on the literal text
+-- "between" in pg_get_constraintdef()'s output. That never matches:
+-- Postgres deparses "BETWEEN x AND y" back into "(col >= x) AND (col <=
+-- y)" when it reconstructs a constraint's definition, so the word
+-- "between" never actually appears. That left the original
+-- 0-to-5 range constraint on placement_matches_played in place, and the
+-- subsequent "add constraint players_placement_matches_played_check"
+-- below then collided with it (Postgres auto-names an unnamed
+-- column-level CHECK as <table>_<column>_check -- the exact same name
+-- this migration also uses -- so the two are indistinguishable by name
+-- alone). Matching on the column name itself, rather than on any
+-- particular operator spelling, is what actually finds it. This also
+-- matches placement_complete = (placement_matches_played = N), so one
+-- pattern catches both of the original constraints; it's safe to re-run
+-- since it will just as reliably find (and idempotently replace) the
+-- constraints this migration itself adds below, and safe to run against
+-- a database where a prior, broken run of this file already dropped one
+-- of the two.
 do $$
 declare
   v_conname text;
@@ -24,8 +43,7 @@ begin
     select conname from pg_constraint
       where conrelid = 'public.players'::regclass
         and contype = 'c'
-        and (pg_get_constraintdef(oid) ilike '%placement_matches_played between%'
-          or pg_get_constraintdef(oid) ilike '%placement_complete = (placement_matches_played%')
+        and pg_get_constraintdef(oid) ilike '%placement_matches_played%'
   loop
     execute format('alter table public.players drop constraint %I', v_conname);
   end loop;
