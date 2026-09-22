@@ -73,7 +73,6 @@ const TIERS: RankTier[] = ['Champion', 'Emerald', 'Diamond', 'Platinum', 'Gold',
               <app-rank-badge [rank]="row.rank" [placementMatches]="row.placementMatches" [compact]="true" />
             </span>
             <span class="record">{{ row.wins }}{{ i18n.t('common.winAbbr') }} – {{ row.losses }}{{ i18n.t('common.lossAbbr') }}</span>
-            <span class="elo">{{ row.elo }} {{ i18n.t('common.elo') }}</span>
           </a>
         }
       </mat-card-content>
@@ -94,7 +93,6 @@ const TIERS: RankTier[] = ['Champion', 'Emerald', 'Diamond', 'Platinum', 'Gold',
     .position { width: 28px; color: var(--mat-sys-on-surface-variant); text-align: center; }
     .name { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
     .record { color: var(--mat-sys-on-surface-variant); font-size: 0.85rem; min-width: 70px; text-align: right; }
-    .elo { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 70px; text-align: right; }
   `]
 })
 export class LeaderboardComponent {
@@ -134,7 +132,16 @@ export class LeaderboardComponent {
     }));
   });
 
-  readonly filteredRows = computed(() => {
+  /**
+   * A plain method, not computed(): `search` and `tierFilter` are ordinary
+   * component fields driven by [(ngModel)], not signals, so a computed()
+   * here would never see them change (computed() only tracks *signal*
+   * reads) and would stay stuck on whatever it first computed. As a plain
+   * method it's called fresh on every change-detection pass, and the
+   * ngModel bindings above already trigger CD on every keystroke/selection,
+   * so this reflects the current search/filter immediately.
+   */
+  filteredRows(): LeaderboardRow[] {
     const query = this.search.trim().toLowerCase();
     return this.rows().filter(row => {
       if (query && !row.displayName.toLowerCase().includes(query)) return false;
@@ -142,7 +149,7 @@ export class LeaderboardComponent {
       if (this.tierFilter === 'unranked') return row.rank.tier === 'Unranked';
       return row.rank.tier === this.tierFilter;
     });
-  });
+  }
 
   async ngOnInit(): Promise<void> {
     try {

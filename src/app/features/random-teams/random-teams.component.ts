@@ -35,7 +35,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
     @if (teams(); as t) {
       <section class="teams">
         <mat-card>
-          <mat-card-header><mat-card-title>{{ i18n.t('teams.teamA') }}</mat-card-title><mat-card-subtitle>{{ i18n.t('teams.averageElo', { avg: (avgElo(t.teamA) | number:'1.0-1') }) }}</mat-card-subtitle></mat-card-header>
+          <mat-card-header><mat-card-title>{{ i18n.t('teams.teamA') }}</mat-card-title></mat-card-header>
           <mat-card-content>
             @for (p of t.teamA; track p.id) {
               <div class="player-row"><span>{{ p.displayName }}</span><app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" [compact]="true" [showRr]="false" /></div>
@@ -47,7 +47,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
           <span class="prob-label">{{ i18n.t('teams.teamAWinChance') }}</span>
         </div>
         <mat-card>
-          <mat-card-header><mat-card-title>{{ i18n.t('teams.teamB') }}</mat-card-title><mat-card-subtitle>{{ i18n.t('teams.averageElo', { avg: (avgElo(t.teamB) | number:'1.0-1') }) }}</mat-card-subtitle></mat-card-header>
+          <mat-card-header><mat-card-title>{{ i18n.t('teams.teamB') }}</mat-card-title></mat-card-header>
           <mat-card-content>
             @for (p of t.teamB; track p.id) {
               <div class="player-row"><span>{{ p.displayName }}</span><app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" [compact]="true" [showRr]="false" /></div>
@@ -55,7 +55,10 @@ import { I18nService } from '../../core/i18n/i18n.service';
           </mat-card-content>
         </mat-card>
       </section>
-      <a mat-stroked-button routerLink="/matches/record" class="record-link"><mat-icon>add_circle</mat-icon>{{ i18n.t('teams.recordThisMatch') }}</a>
+      <div class="post-actions">
+        <a mat-flat-button color="primary" routerLink="/live" [state]="liveModeState(t)"><mat-icon aria-hidden="true">bolt</mat-icon>{{ i18n.t('live.startMatch') }}</a>
+        <a mat-stroked-button routerLink="/matches/record"><mat-icon aria-hidden="true">add_circle</mat-icon>{{ i18n.t('teams.recordThisMatch') }}</a>
+      </div>
     }
   `,
   styles: [`
@@ -66,7 +69,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .vs { text-align: center; }
     .prob { font-size: 1.8rem; font-weight: 700; display: block; }
     .prob-label { font-size: 0.75rem; color: var(--mat-sys-on-surface-variant); }
-    .record-link { margin-top: 16px; }
+    .post-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
     @media (max-width: 720px) { .teams { grid-template-columns: 1fr; } }
   `]
 })
@@ -92,8 +95,11 @@ export class RandomTeamsComponent {
     catch (error) { this.error = error instanceof Error ? error.message : this.i18n.t('teams.generateError'); }
   }
 
-  avgElo(team: Player[]): number {
-    return team.reduce((sum, p) => sum + p.elo, 0) / team.length;
+  liveModeState(t: RandomTeams): Record<string, string> {
+    return {
+      teamAPlayer1: t.teamA[0].id, teamAPlayer2: t.teamA[1].id,
+      teamBPlayer1: t.teamB[0].id, teamBPlayer2: t.teamB[1].id
+    };
   }
 
   winProbability(t: RandomTeams): number {

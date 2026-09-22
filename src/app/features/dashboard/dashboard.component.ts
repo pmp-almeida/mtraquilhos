@@ -39,9 +39,8 @@ import { I18nService } from '../../core/i18n/i18n.service';
     <section class="cards">
       <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardPlayers') }}</mat-card-title></mat-card-header><mat-card-content><strong>{{ players().length }}</strong> {{ i18n.tCount(players().length, 'dashboard.cardPlayers') }}</mat-card-content></mat-card>
       <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardMatches') }}</mat-card-title></mat-card-header><mat-card-content><strong>{{ matchCount() }}</strong> {{ i18n.tCount(matchCount(), 'dashboard.cardMatches') }}</mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardAverageElo') }}</mat-card-title></mat-card-header><mat-card-content><strong>{{ averageElo() }}</strong> {{ i18n.t('dashboard.cardAverageEloSub') }}</mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardHighestElo') }}</mat-card-title></mat-card-header><mat-card-content>
-        @if (topByElo(); as p) { <strong>{{ p.elo }}</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">{{ i18n.t('common.dash') }}</span> }
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardTopRank') }}</mat-card-title></mat-card-header><mat-card-content class="top-rank-content">
+        @if (topByElo(); as p) { <app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" /> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">{{ i18n.t('common.dash') }}</span> }
       </mat-card-content></mat-card>
       <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardMostWins') }}</mat-card-title></mat-card-header><mat-card-content>
         @if (topByWins(); as p) { <strong>{{ p.wins }}</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">{{ i18n.t('common.dash') }}</span> }
@@ -61,7 +60,6 @@ import { I18nService } from '../../core/i18n/i18n.service';
               <span class="position">{{ i + 1 }}</span>
               <a class="name" [routerLink]="['/players', player.id]">{{ player.displayName }}</a>
               <app-rank-badge [rank]="player.rank" [placementMatches]="player.placementMatches" [compact]="true" />
-              <span class="elo">{{ player.elo }}</span>
             </div>
           }
         </mat-card-content>
@@ -96,6 +94,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .hero-actions mat-icon { margin-right: 6px; }
     .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
     .cards strong { font-size: 1.7rem; display: block; }
+    .top-rank-content { display: flex; align-items: center; gap: 8px; }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .preview mat-card-header { display: flex; align-items: center; justify-content: space-between; }
     .row { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--mat-sys-outline-variant); font-size: 0.9rem; }
@@ -125,12 +124,6 @@ export class DashboardComponent {
   readonly activeSeason = signal<Season | null>(null);
   private playerNames: Record<string, string> = {};
   error = '';
-
-  readonly averageElo = computed(() => {
-    const list = this.players();
-    if (!list.length) return 0;
-    return Math.round(list.reduce((sum, p) => sum + p.elo, 0) / list.length);
-  });
 
   readonly topByElo = computed(() => this.players().slice().sort((a, b) => b.elo - a.elo)[0] ?? null);
   readonly topByWins = computed(() => this.players().slice().sort((a, b) => b.wins - a.wins)[0] ?? null);

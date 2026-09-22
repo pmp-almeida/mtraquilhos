@@ -12,6 +12,7 @@ import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { RecordMatchResult } from '../../core/models/match';
 import { EloService } from '../../rank/elo.service';
+import { RankService } from '../../rank/rank.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslationKey } from '../../core/i18n/en-gb';
 
@@ -60,7 +61,7 @@ const STORAGE_KEY = 'tf-live-match-v1';
                   <mat-label>{{ i18n.t(labelKeys[field]) }}</mat-label>
                   <mat-select [formControlName]="field">
                     <mat-option value="">{{ i18n.t('recordMatch.selectPlayer') }}</mat-option>
-                    @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }} ({{ player.elo }})</mat-option> }
+                    @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }}</mat-option> }
                   </mat-select>
                 </mat-form-field>
               }
@@ -106,12 +107,12 @@ const STORAGE_KEY = 'tf-live-match-v1';
                 @for (p of res.players; track p.playerId) {
                   <div class="result-row">
                     <span class="name">{{ nameOf(p.playerId) }}</span>
-                    <span class="delta" [class.tf-win]="p.eloDelta > 0" [class.tf-loss]="p.eloDelta < 0">
-                      {{ p.eloDelta > 0 ? '+' : '' }}{{ p.eloDelta }} {{ i18n.t('common.elo') }}
-                    </span>
                     <span class="rank-change">
-                      {{ p.rankBefore }}
-                      @if (p.rankBefore !== p.rankAfter) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfter }} }
+                      {{ p.rankBefore }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                      @if (p.rankBefore !== p.rankAfter || p.rrBefore !== p.rrAfter) {
+                        <mat-icon aria-hidden="true">arrow_right_alt</mat-icon>
+                        {{ p.rankAfter }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }}
+                      }
                     </span>
                     @if (!p.demotionShieldBefore && p.demotionShieldAfter) {
                       <span class="badge shield"><mat-icon aria-hidden="true">shield</mat-icon>{{ i18n.t('recordMatch.shieldArmed') }}</span>
@@ -157,7 +158,10 @@ const STORAGE_KEY = 'tf-live-match-v1';
                       @for (p of proj; track p.playerId) {
                         <div class="proj-row">
                           <span>{{ p.displayName }}</span>
-                          <span [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">{{ p.delta > 0 ? '+' : '' }}{{ p.delta }} {{ i18n.t('common.elo') }}</span>
+                          <span class="proj-rank" [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">
+                            {{ p.rankBeforeLabel }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                            @if (p.changed) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfterLabel }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }} }
+                          </span>
                         </div>
                       }
                     </div>
@@ -267,6 +271,7 @@ export class LiveMatchComponent {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
   private readonly eloService = inject(EloService);
+  private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly i18n = inject(I18nService);
 
@@ -278,7 +283,7 @@ export class LiveMatchComponent {
   readonly form = this.fb.nonNullable.group({
     teamAPlayer1: ['', Validators.required], teamAPlayer2: ['', Validators.required],
     teamBPlayer1: ['', Validators.required], teamBPlayer2: ['', Validators.required],
-    targetScore: [10, [Validators.required, Validators.min(1), Validators.max(99)]]
+    targetScore: [5, [Validators.required, Validators.min(1), Validators.max(99)]]
   });
 
   readonly players = signal<Player[]>([]);
@@ -288,7 +293,7 @@ export class LiveMatchComponent {
   readonly result = signal<RecordMatchResult | null>(null);
 
   private ids: { a1: string; a2: string; b1: string; b2: string } = { a1: '', a2: '', b1: '', b2: '' };
-  readonly targetScore = signal(10);
+  readonly targetScore = signal(5);
   readonly scoreA = signal(0);
   readonly scoreB = signal(0);
   readonly history = signal<('A' | 'B')[]>([]);
@@ -313,11 +318,23 @@ export class LiveMatchComponent {
     if (!a1 || !a2 || !b1 || !b2) return null;
     const winner = this.leadingTeam() as 'A' | 'B';
     const proj = this.eloService.project([a1.elo, a2.elo], [b1.elo, b2.elo], winner);
+    const project = (p: Player, delta: number) => {
+      const rankBefore = this.rankService.calculate(p.elo, p.placementMatches);
+      const rankAfter = this.rankService.calculate(p.elo + delta, p.placementMatches + 1);
+      const rankBeforeLabel = this.rankService.label(rankBefore);
+      const rankAfterLabel = this.rankService.label(rankAfter);
+      return {
+        playerId: p.id, displayName: p.displayName, delta,
+        rankBeforeLabel, rrBefore: rankBefore.rr,
+        rankAfterLabel, rrAfter: rankAfter.rr,
+        changed: rankBeforeLabel !== rankAfterLabel || rankBefore.rr !== rankAfter.rr
+      };
+    };
     return [
-      { playerId: a1.id, displayName: a1.displayName, delta: proj.deltaA },
-      { playerId: a2.id, displayName: a2.displayName, delta: proj.deltaA },
-      { playerId: b1.id, displayName: b1.displayName, delta: proj.deltaB },
-      { playerId: b2.id, displayName: b2.displayName, delta: proj.deltaB }
+      project(a1, proj.deltaA),
+      project(a2, proj.deltaA),
+      project(b1, proj.deltaB),
+      project(b2, proj.deltaB)
     ];
   });
 
@@ -333,7 +350,33 @@ export class LiveMatchComponent {
       this.snackBar.open(this.i18n.t('live.playersLoadError'), this.i18n.t('common.close'), { duration: 4000 });
       return;
     }
-    this.restore();
+    if (!this.prefillFromState()) {
+      this.restore();
+    }
+  }
+
+  /**
+   * Generate Teams can hand off its generated matchup via router `state`
+   * (see RandomTeamsComponent.liveModeState) so the player doesn't have to
+   * re-pick all four players here. Only pre-fills the setup form -- the
+   * player still confirms the target score and taps Start. A persisted
+   * in-progress match (from `restore()`) always takes priority in practice
+   * since `history.state` is only present right after that specific
+   * navigation, but we still only fall back to `restore()` when there's no
+   * valid incoming state.
+   */
+  private prefillFromState(): boolean {
+    const state = history.state as Partial<Record<'teamAPlayer1' | 'teamAPlayer2' | 'teamBPlayer1' | 'teamBPlayer2', string>> | null;
+    if (!state) return false;
+    const ids = [state.teamAPlayer1, state.teamAPlayer2, state.teamBPlayer1, state.teamBPlayer2];
+    if (ids.some(id => !id)) return false;
+    const known = new Set(this.players().map(p => p.id));
+    if (new Set(ids).size !== 4 || ids.some(id => !known.has(id!))) return false;
+    this.form.patchValue({
+      teamAPlayer1: state.teamAPlayer1, teamAPlayer2: state.teamAPlayer2,
+      teamBPlayer1: state.teamBPlayer1, teamBPlayer2: state.teamBPlayer2
+    });
+    return true;
   }
 
   nameOf(playerId: string): string {
@@ -408,7 +451,7 @@ export class LiveMatchComponent {
 
   startAnother(): void {
     this.result.set(null);
-    this.form.reset({ targetScore: 10 });
+    this.form.reset({ targetScore: 5 });
     this.phase.set('setup');
   }
 

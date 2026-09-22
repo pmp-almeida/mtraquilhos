@@ -40,14 +40,14 @@ interface TierRow {
       <h1>{{ i18n.t('howItWorks.title') }}</h1>
       <p>{{ i18n.t('howItWorks.intro') }}</p>
       <nav class="jump-links" aria-label="Jump to section">
-        <a href="#elo">{{ i18n.t('howItWorks.jumpElo') }}</a>
-        <a href="#placements">{{ i18n.t('howItWorks.jumpPlacements') }}</a>
-        <a href="#tiers">{{ i18n.t('howItWorks.jumpTiers') }}</a>
-        <a href="#rr">{{ i18n.t('howItWorks.jumpRr') }}</a>
-        <a href="#rankups">{{ i18n.t('howItWorks.jumpRankups') }}</a>
-        <a href="#shield">{{ i18n.t('howItWorks.jumpShield') }}</a>
-        <a href="#special">{{ i18n.t('howItWorks.jumpSpecial') }}</a>
-        <a href="#glossary">{{ i18n.t('howItWorks.jumpGlossary') }}</a>
+        <a href="/how-it-works#elo">{{ i18n.t('howItWorks.jumpElo') }}</a>
+        <a href="/how-it-works#placements">{{ i18n.t('howItWorks.jumpPlacements') }}</a>
+        <a href="/how-it-works#tiers">{{ i18n.t('howItWorks.jumpTiers') }}</a>
+        <a href="/how-it-works#rr">{{ i18n.t('howItWorks.jumpRr') }}</a>
+        <a href="/how-it-works#rankups">{{ i18n.t('howItWorks.jumpRankups') }}</a>
+        <a href="/how-it-works#shield">{{ i18n.t('howItWorks.jumpShield') }}</a>
+        <a href="/how-it-works#special">{{ i18n.t('howItWorks.jumpSpecial') }}</a>
+        <a href="/how-it-works#glossary">{{ i18n.t('howItWorks.jumpGlossary') }}</a>
       </nav>
     </section>
 

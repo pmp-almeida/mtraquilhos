@@ -67,6 +67,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   'dashboard.cardAverageElo': 'Elo médio',
   'dashboard.cardAverageEloSub': 'entre jogadores ativos',
   'dashboard.cardHighestElo': 'Elo mais alto',
+  'dashboard.cardTopRank': 'Rank mais alto',
   'dashboard.cardMostWins': 'Mais vitórias',
   'dashboard.cardHighestWinRate': 'Maior taxa de vitórias',
   'dashboard.leaderboardTitle': 'Classificação',
@@ -159,7 +160,7 @@ export const PT_PT: Record<TranslationKey, string> = {
 
   // ---- Players ----
   'players.title': 'Jogadores',
-  'players.subtitle': 'Os novos jogadores começam com {elo} de Elo oculto e completam {count} partidas de colocação.',
+  'players.subtitle': 'Os novos jogadores completam {count} partidas de colocação antes de o rank aparecer.',
   'players.nameLabel': 'Nome do jogador',
   'players.addPlayer': 'Adicionar jogador',
   'players.loadError': 'Não foi possível carregar os jogadores. Verifique a configuração do Supabase.',
@@ -170,6 +171,9 @@ export const PT_PT: Record<TranslationKey, string> = {
   'playerProfile.loading': 'A carregar jogador…',
   'playerProfile.eyebrow': 'PERFIL DO JOGADOR',
   'playerProfile.currentEloPeak': 'Elo atual · Máximo {peak}',
+  'playerProfile.rrProgress': '{rr} RR · {remaining} RR para o próximo rank',
+  'playerProfile.placementProgress': '{played} de {total} partidas de posicionamento jogadas',
+  'playerProfile.maxRank': 'Rank máximo atingido',
   'playerProfile.wins': 'Vitórias',
   'playerProfile.losses': 'Derrotas',
   'playerProfile.winRate': 'Taxa de vitórias',

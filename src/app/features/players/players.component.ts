@@ -10,7 +10,7 @@ import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { STARTING_ELO, PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.constants';
+import { PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.constants';
 
 @Component({
   selector: 'app-players',
@@ -20,7 +20,7 @@ import { STARTING_ELO, PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.consta
     <mat-card>
       <mat-card-header>
         <mat-card-title>{{ i18n.t('players.title') }}</mat-card-title>
-        <mat-card-subtitle>{{ i18n.t('players.subtitle', { elo: startingElo, count: placementMatchesRequired }) }}</mat-card-subtitle>
+        <mat-card-subtitle>{{ i18n.t('players.subtitle', { count: placementMatchesRequired }) }}</mat-card-subtitle>
       </mat-card-header>
       <mat-card-content>
         <div class="create">
@@ -34,7 +34,6 @@ import { STARTING_ELO, PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.consta
             <span>{{ player.displayName }}</span>
             <span class="right">
               <app-rank-badge [rank]="player.rank" [placementMatches]="player.placementMatches" [compact]="true" />
-              <span class="elo">{{ player.elo }} {{ i18n.t('common.elo') }}</span>
             </span>
           </a>
         }
@@ -46,7 +45,6 @@ import { STARTING_ELO, PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.consta
     .player { display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--mat-sys-outline-variant); color: inherit; text-decoration: none; }
     .player:hover { background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent); }
     .right { display: flex; align-items: center; gap: 10px; }
-    .elo { font-variant-numeric: tabular-nums; font-weight: 600; }
     .empty { color: var(--mat-sys-on-surface-variant); }
     .error { color: var(--mat-sys-error); }
     @media (max-width: 540px) { .create { align-items: stretch; flex-direction: column; } }
@@ -55,7 +53,6 @@ import { STARTING_ELO, PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.consta
 export class PlayersComponent {
   private readonly playerService = inject(PlayerService);
   protected readonly i18n = inject(I18nService);
-  readonly startingElo = STARTING_ELO;
   readonly placementMatchesRequired = PLACEMENT_MATCHES_REQUIRED;
   readonly players = signal<Player[]>([]);
   newName = '';

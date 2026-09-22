@@ -73,6 +73,7 @@ export const EN_GB = {
   'dashboard.cardAverageElo': 'Average Elo',
   'dashboard.cardAverageEloSub': 'across active players',
   'dashboard.cardHighestElo': 'Highest Elo',
+  'dashboard.cardTopRank': 'Top Rank',
   'dashboard.cardMostWins': 'Most Wins',
   'dashboard.cardHighestWinRate': 'Highest Win Rate',
   'dashboard.leaderboardTitle': 'Leaderboard',
@@ -165,7 +166,7 @@ export const EN_GB = {
 
   // ---- Players ----
   'players.title': 'Players',
-  'players.subtitle': 'New players start at {elo} hidden Elo and complete {count} placements.',
+  'players.subtitle': 'New players complete {count} placement matches before their rank appears.',
   'players.nameLabel': 'Player name',
   'players.addPlayer': 'Add player',
   'players.loadError': 'Players could not be loaded. Check the Supabase configuration.',
@@ -176,6 +177,9 @@ export const EN_GB = {
   'playerProfile.loading': 'Loading player…',
   'playerProfile.eyebrow': 'PLAYER PROFILE',
   'playerProfile.currentEloPeak': 'Current Elo · Peak {peak}',
+  'playerProfile.rrProgress': '{rr} RR · {remaining} RR to next rank',
+  'playerProfile.placementProgress': '{played} of {total} placement matches played',
+  'playerProfile.maxRank': 'Top rank reached',
   'playerProfile.wins': 'Wins',
   'playerProfile.losses': 'Losses',
   'playerProfile.winRate': 'Win rate',

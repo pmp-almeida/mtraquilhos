@@ -22,10 +22,12 @@ interface PlayerProjection {
   playerId: string;
   displayName: string;
   team: 'A' | 'B';
-  eloBefore: number;
-  eloAfter: number;
   delta: number;
   rankBeforeLabel: string;
+  rrBefore: number | null;
+  rankAfterLabel: string;
+  rrAfter: number | null;
+  changed: boolean;
 }
 
 @Component({
@@ -46,12 +48,12 @@ interface PlayerProjection {
           @for (p of res.players; track p.playerId) {
             <div class="result-row">
               <span class="name">{{ nameOf(p.playerId) }}</span>
-              <span class="delta" [class.tf-win]="p.eloDelta > 0" [class.tf-loss]="p.eloDelta < 0">
-                {{ p.eloDelta > 0 ? '+' : '' }}{{ p.eloDelta }} {{ i18n.t('common.elo') }}
-              </span>
               <span class="rank-change">
-                {{ p.rankBefore }}
-                @if (p.rankBefore !== p.rankAfter) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfter }} }
+                {{ p.rankBefore }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                @if (p.rankBefore !== p.rankAfter || p.rrBefore !== p.rrAfter) {
+                  <mat-icon aria-hidden="true">arrow_right_alt</mat-icon>
+                  {{ p.rankAfter }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }}
+                }
               </span>
               @if (!p.demotionShieldBefore && p.demotionShieldAfter) {
                 <span class="badge shield"><mat-icon aria-hidden="true">shield</mat-icon>{{ i18n.t('recordMatch.shieldArmed') }}</span>
@@ -83,7 +85,7 @@ interface PlayerProjection {
                   <mat-label>{{ i18n.t(labelKeys[field]) }}</mat-label>
                   <mat-select [formControlName]="field">
                     <mat-option value="">{{ i18n.t('recordMatch.selectPlayer') }}</mat-option>
-                    @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }} ({{ player.elo }})</mat-option> }
+                    @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }}</mat-option> }
                   </mat-select>
                 </mat-form-field>
               }
@@ -108,9 +110,17 @@ interface PlayerProjection {
           <mat-card-content>
             <div class="teams">
               <div class="team">
-                <h3>{{ i18n.t('recordMatch.teamAAvg', { avg: (proj.teamAElo | number:'1.0-1') }) }}</h3>
+                <h3>{{ i18n.t('teams.teamA') }}</h3>
                 @for (p of proj.players; track p.playerId) {
-                  @if (p.team === 'A') { <div class="proj-row"><span>{{ p.displayName }}</span><span [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">{{ p.delta > 0 ? '+' : '' }}{{ p.delta }}</span></div> }
+                  @if (p.team === 'A') {
+                    <div class="proj-row">
+                      <span>{{ p.displayName }}</span>
+                      <span class="proj-rank" [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">
+                        {{ p.rankBeforeLabel }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                        @if (p.changed) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfterLabel }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }} }
+                      </span>
+                    </div>
+                  }
                 }
               </div>
               <div class="vs">
@@ -118,9 +128,17 @@ interface PlayerProjection {
                 <span class="prob-label">{{ i18n.t('recordMatch.teamAWinChance') }}</span>
               </div>
               <div class="team">
-                <h3>{{ i18n.t('recordMatch.teamBAvg', { avg: (proj.teamBElo | number:'1.0-1') }) }}</h3>
+                <h3>{{ i18n.t('teams.teamB') }}</h3>
                 @for (p of proj.players; track p.playerId) {
-                  @if (p.team === 'B') { <div class="proj-row"><span>{{ p.displayName }}</span><span [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">{{ p.delta > 0 ? '+' : '' }}{{ p.delta }}</span></div> }
+                  @if (p.team === 'B') {
+                    <div class="proj-row">
+                      <span>{{ p.displayName }}</span>
+                      <span class="proj-rank" [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">
+                        {{ p.rankBeforeLabel }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                        @if (p.changed) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfterLabel }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }} }
+                      </span>
+                    </div>
+                  }
                 }
               </div>
             </div>
@@ -210,10 +228,18 @@ export class RecordMatchComponent {
     const a1 = byId(value.teamAPlayer1), a2 = byId(value.teamAPlayer2);
     const b1 = byId(value.teamBPlayer1), b2 = byId(value.teamBPlayer2);
     const proj = this.eloService.project([a1.elo, a2.elo], [b1.elo, b2.elo], value.winner);
-    const build = (p: Player, team: 'A' | 'B', delta: number): PlayerProjection => ({
-      playerId: p.id, displayName: p.displayName, team, eloBefore: p.elo, eloAfter: p.elo + delta, delta,
-      rankBeforeLabel: this.rankService.label(p.rank)
-    });
+    const build = (p: Player, team: 'A' | 'B', delta: number): PlayerProjection => {
+      const rankBefore = this.rankService.calculate(p.elo, p.placementMatches);
+      const rankAfter = this.rankService.calculate(p.elo + delta, p.placementMatches + 1);
+      const rankBeforeLabel = this.rankService.label(rankBefore);
+      const rankAfterLabel = this.rankService.label(rankAfter);
+      return {
+        playerId: p.id, displayName: p.displayName, team, delta,
+        rankBeforeLabel, rrBefore: rankBefore.rr,
+        rankAfterLabel, rrAfter: rankAfter.rr,
+        changed: rankBeforeLabel !== rankAfterLabel || rankBefore.rr !== rankAfter.rr
+      };
+    };
     this.projection.set({
       teamAElo: proj.teamAElo, teamBElo: proj.teamBElo, expectedA: proj.expectedA,
       players: [

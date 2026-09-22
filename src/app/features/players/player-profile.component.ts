@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { MatchService } from '../../core/services/match.service';
@@ -11,12 +12,13 @@ import { MatchSummary } from '../../core/models/match';
 import { PlayerSeasonStats } from '../../core/models/season';
 import { TeammateStatsService, TeammateStat } from '../../rank/teammate-stats.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
+import { PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.constants';
 import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-player-profile',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatCardModule, MatIconModule, RankBadgeComponent],
+  imports: [DatePipe, RouterLink, MatCardModule, MatIconModule, MatProgressBarModule, RankBadgeComponent],
   template: `
     @if (loading()) {
       <p class="tf-empty">{{ i18n.t('playerProfile.loading') }}</p>
@@ -29,10 +31,19 @@ import { I18nService } from '../../core/i18n/i18n.service';
           <h1>{{ p.displayName }}</h1>
           <app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" />
         </div>
-        <div class="elo-block">
-          <span class="elo">{{ p.elo }}</span>
-          <span class="elo-label">{{ i18n.t('playerProfile.currentEloPeak', { peak: p.peakElo }) }}</span>
-        </div>
+      </section>
+
+      <section class="progress-block">
+        @if (p.rank.tier === 'Unranked') {
+          <div class="progress-header"><span>{{ i18n.t('playerProfile.placementProgress', { played: p.placementMatches, total: placementRequired }) }}</span></div>
+          <mat-progress-bar mode="determinate" [value]="(p.placementMatches / placementRequired) * 100"></mat-progress-bar>
+        } @else if (p.rank.rr !== null) {
+          <div class="progress-header"><span>{{ i18n.t('playerProfile.rrProgress', { rr: p.rank.rr, remaining: 100 - p.rank.rr }) }}</span></div>
+          <mat-progress-bar mode="determinate" [value]="p.rank.rr"></mat-progress-bar>
+        } @else {
+          <div class="progress-header"><span>{{ i18n.t('playerProfile.maxRank') }}</span></div>
+          <mat-progress-bar mode="determinate" [value]="100"></mat-progress-bar>
+        }
       </section>
 
       <section class="stats-grid">
@@ -42,8 +53,6 @@ import { I18nService } from '../../core/i18n/i18n.service';
         <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.totalMatches') }}</span><strong>{{ p.wins + p.losses }}</strong></mat-card-content></mat-card>
         <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.currentStreak') }}</span><strong [class.tf-win]="currentStreak() > 0" [class.tf-loss]="currentStreak() < 0">{{ streakLabel(currentStreak()) }}</strong></mat-card-content></mat-card>
         <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.bestWinStreak') }}</span><strong>{{ bestWinStreak() }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.biggestGain') }}</span><strong class="tf-win">{{ biggestGain() !== null ? '+' + biggestGain() : i18n.t('common.dash') }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.biggestLoss') }}</span><strong class="tf-loss">{{ biggestLoss() !== null ? biggestLoss() : i18n.t('common.dash') }}</strong></mat-card-content></mat-card>
       </section>
 
       <section class="split">
@@ -73,7 +82,6 @@ import { I18nService } from '../../core/i18n/i18n.service';
             @for (stat of seasonHistory(); track stat.seasonId) {
               <div class="season-row">
                 <span>{{ stat.finalRank ?? i18n.t('leaderboard.unranked') }}{{ stat.finalRr !== null ? ' · ' + stat.finalRr + ' ' + i18n.t('common.rr') : '' }}</span>
-                <span>{{ i18n.t('playerProfile.peak', { elo: stat.peakElo }) }}</span>
                 <span>{{ stat.wins }}{{ i18n.t('common.winAbbr') }} – {{ stat.losses }}{{ i18n.t('common.lossAbbr') }}</span>
               </div>
             }
@@ -100,10 +108,9 @@ import { I18nService } from '../../core/i18n/i18n.service';
     :host { display: block; }
     .header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
     h1 { margin: 4px 0 10px; }
-    .elo-block { text-align: right; }
-    .elo { font-size: 2.4rem; font-weight: 700; display: block; line-height: 1; }
-    .elo-label { color: var(--mat-sys-on-surface-variant); font-size: 0.8rem; }
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .progress-block { margin-bottom: 20px; }
+    .progress-header { margin-bottom: 6px; font-size: 0.85rem; color: var(--mat-sys-on-surface-variant); font-weight: 600; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
     .stat-label { display: block; color: var(--mat-sys-on-surface-variant); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
     .stats-grid strong { font-size: 1.4rem; }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -127,9 +134,9 @@ export class PlayerProfileComponent {
   readonly player = signal<Player | null>(null);
   readonly matches = signal<MatchSummary[]>([]);
   readonly seasonHistory = signal<PlayerSeasonStats[]>([]);
-  readonly eloDeltas = signal<number[]>([]);
   readonly names = signal<Record<string, string>>({});
   readonly loading = signal(true);
+  readonly placementRequired = PLACEMENT_MATCHES_REQUIRED;
   error = '';
   private playerId = '';
 
@@ -169,32 +176,21 @@ export class PlayerProfileComponent {
     return best;
   });
 
-  readonly biggestGain = computed(() => {
-    const deltas = this.eloDeltas().filter(d => d > 0);
-    return deltas.length ? Math.max(...deltas) : null;
-  });
-  readonly biggestLoss = computed(() => {
-    const deltas = this.eloDeltas().filter(d => d < 0);
-    return deltas.length ? Math.min(...deltas) : null;
-  });
-
   async ngOnInit(): Promise<void> {
     this.playerId = this.route.snapshot.paramMap.get('id') ?? '';
     if (!this.playerId) { this.error = this.i18n.t('playerProfile.noPlayerSpecified'); this.loading.set(false); return; }
     try {
-      const [player, matches, names, seasonHistory, ratingEvents] = await Promise.all([
+      const [player, matches, names, seasonHistory] = await Promise.all([
         this.playerService.getById(this.playerId),
         this.matchService.listForPlayer(this.playerId),
         this.playerService.nameMap(),
-        this.seasonService.historyForPlayer(this.playerId),
-        this.matchService.listRatingEvents(this.playerId)
+        this.seasonService.historyForPlayer(this.playerId)
       ]);
       if (!player) { this.error = this.i18n.t('playerProfile.notFound'); return; }
       this.player.set(player);
       this.matches.set(matches);
       this.names.set(names);
       this.seasonHistory.set(seasonHistory);
-      this.eloDeltas.set(ratingEvents.map(e => e.eloDelta));
     } catch {
       this.error = this.i18n.t('playerProfile.loadError');
     } finally {
