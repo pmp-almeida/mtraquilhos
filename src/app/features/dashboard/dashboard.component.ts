@@ -71,10 +71,16 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
         <mat-card-content>
           @if (!matches().length) { <p class="tf-empty">No matches recorded yet.</p> }
           @for (match of matches().slice(0, 5); track match.id) {
-            <div class="row">
-              <span class="winner">Team {{ match.winner }}</span>
-              <span class="date">{{ match.playedAt | date:'short' }}</span>
-              <span class="score">{{ match.scoreA === null ? '&mdash;' : match.scoreA + ' – ' + match.scoreB }}</span>
+            <div class="match-row">
+              <div class="teams">
+                <span class="team" [class.winner]="match.winner === 'A'">{{ teamNames(match.teamAPlayerIds) }}</span>
+                <span class="vs">vs</span>
+                <span class="team" [class.winner]="match.winner === 'B'">{{ teamNames(match.teamBPlayerIds) }}</span>
+              </div>
+              <div class="meta">
+                <span class="date">{{ match.playedAt | date:'short' }}</span>
+                <span class="score">{{ match.scoreA === null ? '&mdash;' : match.scoreA + ' – ' + match.scoreB }}</span>
+              </div>
             </div>
           }
         </mat-card-content>
@@ -96,7 +102,11 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
     .name { color: inherit; text-decoration: none; font-weight: 600; }
     .name:hover { text-decoration: underline; }
     .elo { font-variant-numeric: tabular-nums; font-weight: 600; }
-    .winner { font-weight: 600; }
+    .match-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--mat-sys-outline-variant); font-size: 0.9rem; }
+    .teams { display: flex; align-items: center; gap: 6px; font-weight: 600; flex-wrap: wrap; }
+    .team.winner { color: var(--mat-sys-primary); }
+    .vs { color: var(--mat-sys-on-surface-variant); font-weight: 400; font-size: 0.78rem; }
+    .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
     .date, .score { color: var(--mat-sys-on-surface-variant); text-align: right; }
     @media (max-width: 900px) { .cards { grid-template-columns: 1fr 1fr; } .split { grid-template-columns: 1fr; } }
     @media (max-width: 540px) { .cards { grid-template-columns: 1fr; } }
@@ -111,6 +121,7 @@ export class DashboardComponent {
   readonly matches = signal<MatchSummary[]>([]);
   readonly matchCount = signal(0);
   readonly activeSeason = signal<Season | null>(null);
+  private playerNames: Record<string, string> = {};
   error = '';
 
   readonly averageElo = computed(() => {
@@ -133,18 +144,24 @@ export class DashboardComponent {
 
   async ngOnInit(): Promise<void> {
     try {
-      const [players, matches, matchCount, activeSeason] = await Promise.all([
+      const [players, matches, matchCount, activeSeason, playerNames] = await Promise.all([
         this.playerService.listActive(),
         this.matchService.listRecent(5),
         this.matchService.countAll(),
-        this.seasonService.getActive()
+        this.seasonService.getActive(),
+        this.playerService.nameMap()
       ]);
       this.players.set(players);
       this.matches.set(matches);
       this.matchCount.set(matchCount);
       this.activeSeason.set(activeSeason);
+      this.playerNames = playerNames;
     } catch {
       this.error = 'Dashboard data could not be loaded. Check the Supabase configuration.';
     }
+  }
+
+  teamNames(ids: [string, string]): string {
+    return ids.map(id => this.playerNames[id] ?? 'Unknown').join(' & ');
   }
 }

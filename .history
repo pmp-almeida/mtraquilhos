@@ -533,3 +533,67 @@ Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean, both in
 the scratch copy and the real project) and a full production build in
 the scratch copy (succeeds, warning-only at the new 650kB line, no
 error). Spec addendum: section 55.
+
+## 2026-09-22 — Dashboard: Recent Matches shows player names instead of "Team A/B"
+
+The dashboard's "Recent matches" preview card only ever showed "Team A"
+or "Team B" for the winner, with no indication of who actually played.
+The full Match history page (`/matches`) already resolved this
+correctly via `PlayerService.nameMap()` + a `teamNames()` helper; the
+dashboard's compact card just hadn't been given the same treatment.
+
+Brought the dashboard card in line with that existing pattern: it now
+loads the player name map alongside its other dashboard data and shows
+both teams' player names (e.g. "Duarte & Matheus vs Andre & Diogo"),
+highlighting the winning team, with the score and date to the right.
+Purely a display change -- no data model, RPC, or ranking logic touched.
+
+Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean).
+
+## 2026-09-22 — Analysis: factoring match score (margin of victory) into Elo
+
+Pedro asked for an investigation (not implementation) of what it would
+take to have the actual football score influence Elo, instead of only
+win/loss. Wrote up the standard margin-of-victory-multiplier approach,
+why it's riskier than its line count suggests (same
+duplicated-formula-drift risk that caused two of the three production
+bugs fixed earlier this session, but for meaningfully more complex
+math; no fixed/enforced target score across Live Mode and Record Match
+makes margin normalization a real open design question rather than a
+mechanical one; score is currently optional on Record Match, so making
+it Elo-relevant forces either a required-score UX change or a
+fallback that reintroduces the exact inconsistency the current design
+avoids), the pros (rewards genuine dominance, well-precedented
+technique, corrects for short-game luck), and the cons (reverses a
+deliberate section-9 design decision, changes what an Elo delta means,
+and -- the sharpest one for a friendly ladder -- creates an incentive
+to keep running up an already-decided score instead of ending the
+match). No backfill needed if ever built, since Elo is running state.
+Recorded as spec addendum section 56, explicitly not implemented.
+
+## 2026-09-22 — Feature: "How Ranking Works" explainer page
+
+Added a new /how-it-works page for anyone with zero prior familiarity
+with Elo/RR/tier ranking systems -- covers Elo (with a live worked
+example), placement matches, the full tier/division table, RR, automatic
+rank-ups, the Demotion Shield end to end, Lixo/Champion, and a glossary
+of every other ranking term shown around the app (Peak Elo, K-factor,
+win streak, Best/Worst Teammate, etc.). States plainly that score
+doesn't currently affect Elo, tying back to spec section 56 above.
+
+Every worked number on the page (Elo example, RR examples, placement
+reveal examples, and the entire tier/Elo-range table) is computed live
+through the real RankService/EloService/rank.constants.ts rather than
+hand-typed, so it can't drift from what record_match actually does --
+directly applying the lesson from this session's duplicated-logic bugs.
+
+New route `/how-it-works` (lazy-loaded, same pattern as every other
+route). Discoverable via an always-visible toolbar icon link and a
+"How ranks are calculated" link on the Leaderboard heading.
+
+Verified with a full production `ng build` in a scratch Linux copy of
+the project (this environment can't run `ng build` directly against the
+real checkout -- see the section-55 entry above) -- confirms the
+inline template's bindings all type-check under strictTemplates, which
+`tsc --noEmit` alone does not check. New page lands as its own 19.5 kB
+lazy chunk; initial bundle unaffected. Spec addendum section 57.

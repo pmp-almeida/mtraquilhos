@@ -1946,3 +1946,56 @@ Every route in `app.routes.ts` used eager `component:` references, so every feat
 Result: the initial bundle dropped from 1.05 MB (failing) to 621.82 kB raw / 152.58 kB gzipped -- comfortably under budget, with each feature now its own small lazy chunk (17-45 kB raw) fetched only when its route is visited. `angular.json`'s production `initial` budget was tightened from `500kB`/`1MB` (warning/error) to `650kB`/`900kB` to reflect the new baseline with headroom, rather than leaving stale numbers that no longer mean anything.
 
 This keeps the app on GitHub Pages' free static hosting exactly as originally specified (section 2, section 42) -- no server, no paid tier, no change to the deploy workflow's `cp index.html 404.html` SPA-fallback trick, which still works unchanged since routing itself (path structure, guards) is untouched.
+
+
+---
+
+# 56. Addendum — Considered: Factoring Match Score (Margin of Victory) into Elo
+
+This documents an analysis Pedro asked for, not an implementation. Nothing in this section changes current behavior; section 9 ("Match Score") still holds exactly as written -- the actual football score has no effect on Elo, only who won does.
+
+## What it would mean
+
+The standard technique (used by, e.g., FiveThirtyEight's NFL/NBA/soccer Elo models) is a margin-of-victory multiplier: instead of `delta = K * (1 - expectedA)`, compute `delta = K * multiplier * (1 - expectedA)`, where the multiplier grows with how lopsided the final score was, damped by a term that shrinks it back down as the result gets more expected -- without that damping term, a big favorite blowing out a weak team gets an unfair bonus and a huge underdog upset gets over-amplified.
+
+## Why it's disproportionately risky for its size
+
+The rating formula lives in exactly one authoritative place today (`record_match`), but it's mirrored client-side in `EloService.project()` for two previews (Record Match's pre-submit confirmation and Live Mode's finish prompt). A margin formula would need to be implemented identically in both SQL and TypeScript and kept in lockstep -- the same class of risk that caused two of the three production bugs fixed earlier this session (duplicated logic silently drifting apart), except the margin math is meaningfully more complex than the threshold tables that drifted before.
+
+Matches also don't have a fixed, enforced target score -- Live Mode lets a player pick "first to N" per match, and Record Match doesn't enforce any target at all -- so an absolute point difference (10-0 vs 3-0) isn't comparable across matches. Margin would need to be expressed as a ratio or normalized against the winning score, and tuning that normalization plus the damping term is a genuine design decision, not just implementation; it would likely need empirical tuning against this group's real match history to feel fair rather than arbitrary.
+
+Score is also currently optional on Record Match (an after-the-fact entry may not remember the exact score). If score drives Elo, either it becomes required everywhere (a real friction change for after-the-fact entry) or a fallback is needed for when it's missing -- which reintroduces the exact inconsistency the current design avoids, since two players could get different treatment for the same win depending on whether a score was typed in. Live Mode always has a score by construction, so it's naturally compatible; Record Match is the one that would need to change.
+
+Placement matches (section 13) use this exact same formula, so margin-adjusted Elo would also apply during the 10 matches that determine a new player's entire starting rank -- worth an explicit decision on whether that's wanted, since it amplifies variance right when it matters most for a first impression of rank. The Demotion Shield's win/lose resolution (section 19) stays binary either way and would not need to change.
+
+No backfill of historical matches would be needed -- Elo is running state, not recomputed from history, so a change would be forward-only, the same way the section-49 season-compression feature is.
+
+## Pros
+
+Rewards genuine dominance over a narrow squeak-through, matching how players already talk about their matches informally. It's a well-precedented technique (not novel), so there's a known-good formula shape to start from. It also partially corrects for the fact that a short, fast game decided by one point carries real luck -- weighting decisive wins more improves the signal quality of the rating.
+
+## Cons
+
+It reverses a deliberate design decision (section 9) rather than extending one, and it changes what an Elo delta *means* -- two wins could produce very different point swings, a strictly more complex mental model for players. The sharper concern for a friendly office ladder specifically: score becomes a ranking lever, creating a real incentive to keep playing out a match that's already decided just to pad the margin, instead of ending it once it's obviously over -- arguably a worse social dynamic than what exists today, and very likely the actual reason score was excluded from the rating math in the first place. Beyond that: the two-implementation drift risk, the required-score friction for Record Match, and the open (not just mechanical) normalization question above.
+
+## If this is ever revisited
+
+Recommended scope: a capped multiplier (e.g. bounded to roughly 0.85x-1.3x of the base delta, not unbounded) so it nudges results rather than dominates them, explicitly exempted from placement matches, with the formula and its test fixtures written and verified before `record_match` itself is touched.
+
+---
+
+# 57. Addendum — "How Ranking Works" Page
+
+Adds a new, static explainer page (route `/how-it-works`) aimed at someone with zero prior familiarity with Elo/RR/tier-based ranking systems. It exists because the app surfaces a lot of specialized vocabulary -- Elo, RR, tiers, divisions, placement matches, the Demotion Shield -- with no in-app explanation of what any of it means or how it's calculated.
+
+## Content
+
+The page walks through, in plain language, with worked examples: what Elo is and how the team-average / expected-probability / K-factor delta formula works (section 5-8); placement matches and the Unranked -> reveal flow (section 13); the full tier and division table with Elo ranges (sections 10-11); what RR is and its formula (section 12); automatic rank-ups (section 14); the Demotion Shield mechanic end to end (sections 18-20); Lixo and Champion as the two edge tiers (sections 14-15, 20); and a glossary covering the remaining terms shown elsewhere in the app (Peak Elo, K-factor, expected win probability, demotion pending, win streak, Best/Worst Teammate). It also states plainly, in the Elo section, that the actual football score currently has no effect on Elo (see section 9 and section 56 above) -- a fact a newcomer would otherwise have no way to know.
+
+## Implementation note
+
+Every worked number on the page (the Elo example's team averages and deltas, the RR examples, the placement-reveal examples, and the entire tier/Elo-range table) is computed live through the real `RankService`/`EloService`/`rank.constants.ts` rather than hand-typed, specifically so the explainer can never drift out of sync with what `record_match` actually does -- the same discipline the spec document itself is held to, and the direct lesson from this session's three duplicated-logic production bugs.
+
+## Discoverability
+
+A "How ranking works" icon link sits in the main toolbar (always visible, all screen sizes), and a "How ranks are calculated" link sits on the Leaderboard page's heading, since that's the page most likely to prompt the question.
