@@ -12,6 +12,9 @@ import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { RecordMatchResult } from '../../core/models/match';
 import { EloService } from '../../rank/elo.service';
+import { RankService } from '../../rank/rank.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslationKey } from '../../core/i18n/en-gb';
 
 /**
  * A live match persisted to localStorage while it's in progress, so an
@@ -47,31 +50,31 @@ const STORAGE_KEY = 'tf-live-match-v1';
     @if (phase() === 'setup') {
       <mat-card class="setup-card">
         <mat-card-header>
-          <mat-card-title>Live Match</mat-card-title>
-          <mat-card-subtitle>Track the score right from the table. The result posts to the leaderboard the instant you confirm.</mat-card-subtitle>
+          <mat-card-title>{{ i18n.t('live.title') }}</mat-card-title>
+          <mat-card-subtitle>{{ i18n.t('live.setupSubtitle') }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <form [formGroup]="form">
             <div class="grid">
               @for (field of playerFields; track field) {
                 <mat-form-field appearance="outline">
-                  <mat-label>{{ labels[field] }}</mat-label>
+                  <mat-label>{{ i18n.t(labelKeys[field]) }}</mat-label>
                   <mat-select [formControlName]="field">
-                    <mat-option value="">Select player</mat-option>
-                    @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }} ({{ player.elo }})</mat-option> }
+                    <mat-option value="">{{ i18n.t('recordMatch.selectPlayer') }}</mat-option>
+                    @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }}</mat-option> }
                   </mat-select>
                 </mat-form-field>
               }
             </div>
             <mat-form-field appearance="outline" class="target-field">
-              <mat-label>First to</mat-label>
+              <mat-label>{{ i18n.t('live.targetScoreLabel') }}</mat-label>
               <input matInput type="number" formControlName="targetScore" min="1" max="99" />
-              <span matSuffix>&nbsp;points</span>
+              <span matSuffix>&nbsp;{{ i18n.t('live.pointsSuffix') }}</span>
             </mat-form-field>
             <div class="actions">
               <button mat-flat-button color="primary" type="button" [disabled]="form.invalid" (click)="start()">
                 <mat-icon aria-hidden="true">bolt</mat-icon>
-                Start live match
+                {{ i18n.t('live.startMatch') }}
               </button>
             </div>
           </form>
@@ -81,44 +84,44 @@ const STORAGE_KEY = 'tf-live-match-v1';
       <div class="stage">
         <div class="top-bar">
           @if (!confirmingCancel()) {
-            <button mat-icon-button (click)="confirmingCancel.set(true)" aria-label="Cancel match"><mat-icon>close</mat-icon></button>
+            <button mat-icon-button (click)="confirmingCancel.set(true)" [attr.aria-label]="i18n.t('live.cancelAria')"><mat-icon>close</mat-icon></button>
           } @else {
             <div class="cancel-inline">
-              <span>Discard this match?</span>
-              <button mat-button (click)="confirmingCancel.set(false)">No</button>
-              <button mat-button color="warn" (click)="cancel()">Discard</button>
+              <span>{{ i18n.t('live.discardPrompt') }}</span>
+              <button mat-button (click)="confirmingCancel.set(false)">{{ i18n.t('live.no') }}</button>
+              <button mat-button color="warn" (click)="cancel()">{{ i18n.t('live.discard') }}</button>
             </div>
           }
-          <span class="target-chip">First to {{ targetScore() }}</span>
-          <button mat-icon-button [disabled]="!history().length" (click)="undo()" aria-label="Undo last point"><mat-icon>undo</mat-icon></button>
+          <span class="target-chip">{{ i18n.t('live.targetChip', { target: targetScore() }) }}</span>
+          <button mat-icon-button [disabled]="!history().length" (click)="undo()" [attr.aria-label]="i18n.t('live.undoAria')"><mat-icon>undo</mat-icon></button>
         </div>
 
         @if (result(); as res) {
           <div class="result-view">
             <mat-card class="result-card">
               <mat-card-header>
-                <mat-card-title>Match recorded</mat-card-title>
-                <mat-card-subtitle>Final score {{ scoreA() }} – {{ scoreB() }} &middot; Team {{ res.teamDelta >= 0 ? 'A' : 'B' }}&hellip; </mat-card-subtitle>
+                <mat-card-title>{{ i18n.t('live.recordedTitle') }}</mat-card-title>
+                <mat-card-subtitle>{{ i18n.t('live.recordedSubtitle', { scoreA: scoreA(), scoreB: scoreB(), team: res.teamDelta >= 0 ? 'A' : 'B' }) }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 @for (p of res.players; track p.playerId) {
                   <div class="result-row">
                     <span class="name">{{ nameOf(p.playerId) }}</span>
-                    <span class="delta" [class.tf-win]="p.eloDelta > 0" [class.tf-loss]="p.eloDelta < 0">
-                      {{ p.eloDelta > 0 ? '+' : '' }}{{ p.eloDelta }} Elo
-                    </span>
                     <span class="rank-change">
-                      {{ p.rankBefore }}
-                      @if (p.rankBefore !== p.rankAfter) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfter }} }
+                      {{ p.rankBefore }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                      @if (p.rankBefore !== p.rankAfter || p.rrBefore !== p.rrAfter) {
+                        <mat-icon aria-hidden="true">arrow_right_alt</mat-icon>
+                        {{ p.rankAfter }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }}
+                      }
                     </span>
                     @if (!p.demotionShieldBefore && p.demotionShieldAfter) {
-                      <span class="badge shield"><mat-icon aria-hidden="true">shield</mat-icon>Demotion Shield armed</span>
+                      <span class="badge shield"><mat-icon aria-hidden="true">shield</mat-icon>{{ i18n.t('recordMatch.shieldArmed') }}</span>
                     }
                     @if (p.demotionShieldBefore && !p.demotionShieldAfter && p.rankAfter === p.rankBefore) {
-                      <span class="badge shield-saved"><mat-icon aria-hidden="true">verified</mat-icon>Shield saved the rank</span>
+                      <span class="badge shield-saved"><mat-icon aria-hidden="true">verified</mat-icon>{{ i18n.t('recordMatch.shieldSaved') }}</span>
                     }
                     @if (p.demotionShieldBefore && !p.demotionShieldAfter && p.rankAfter !== p.rankBefore) {
-                      <span class="badge demoted"><mat-icon aria-hidden="true">trending_down</mat-icon>Demoted</span>
+                      <span class="badge demoted"><mat-icon aria-hidden="true">trending_down</mat-icon>{{ i18n.t('recordMatch.demoted') }}</span>
                     }
                   </div>
                 }
@@ -126,7 +129,7 @@ const STORAGE_KEY = 'tf-live-match-v1';
               <mat-card-actions align="end">
                 <button mat-flat-button color="primary" (click)="startAnother()">
                   <mat-icon aria-hidden="true">bolt</mat-icon>
-                  Start another live match
+                  {{ i18n.t('live.startAnother') }}
                 </button>
               </mat-card-actions>
             </mat-card>
@@ -146,26 +149,29 @@ const STORAGE_KEY = 'tf-live-match-v1';
           @if (showFinishPrompt()) {
             <div class="finish-backdrop">
               <mat-card class="finish-sheet">
-                <mat-card-header><mat-card-title>Finish the match?</mat-card-title></mat-card-header>
+                <mat-card-header><mat-card-title>{{ i18n.t('live.finishTitle') }}</mat-card-title></mat-card-header>
                 <mat-card-content>
                   <p class="final-score">{{ scoreA() }} – {{ scoreB() }}</p>
-                  <p class="final-winner">Team {{ leadingTeam() }} wins</p>
+                  <p class="final-winner">{{ i18n.t('live.finishWinner', { team: leadingTeam() }) }}</p>
                   @if (finishProjection(); as proj) {
                     <div class="proj-rows">
                       @for (p of proj; track p.playerId) {
                         <div class="proj-row">
                           <span>{{ p.displayName }}</span>
-                          <span [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">{{ p.delta > 0 ? '+' : '' }}{{ p.delta }} Elo</span>
+                          <span class="proj-rank" [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">
+                            {{ p.rankBeforeLabel }}{{ p.rrBefore !== null ? ' · ' + p.rrBefore + ' ' + i18n.t('common.rr') : '' }}
+                            @if (p.changed) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfterLabel }}{{ p.rrAfter !== null ? ' · ' + p.rrAfter + ' ' + i18n.t('common.rr') : '' }} }
+                          </span>
                         </div>
                       }
                     </div>
-                    <p class="disclaimer">Projected Elo change only. The server confirms the exact result.</p>
+                    <p class="disclaimer">{{ i18n.t('live.finishDisclaimer') }}</p>
                   }
                 </mat-card-content>
                 <mat-card-actions>
-                  <button mat-stroked-button type="button" (click)="keepPlaying()">Keep playing</button>
+                  <button mat-stroked-button type="button" (click)="keepPlaying()">{{ i18n.t('live.keepPlaying') }}</button>
                   <button mat-flat-button color="primary" type="button" [disabled]="submitting()" (click)="confirmFinish()">
-                    {{ submitting() ? 'Recording…' : 'Confirm & finish' }}
+                    {{ submitting() ? i18n.t('live.recording') : i18n.t('live.confirmAndFinish') }}
                   </button>
                 </mat-card-actions>
               </mat-card>
@@ -265,17 +271,19 @@ export class LiveMatchComponent {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
   private readonly eloService = inject(EloService);
+  private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
+  protected readonly i18n = inject(I18nService);
 
   readonly playerFields = ['teamAPlayer1', 'teamAPlayer2', 'teamBPlayer1', 'teamBPlayer2'] as const;
-  readonly labels: Record<string, string> = {
-    teamAPlayer1: 'Team A player 1', teamAPlayer2: 'Team A player 2',
-    teamBPlayer1: 'Team B player 1', teamBPlayer2: 'Team B player 2'
+  readonly labelKeys: Record<string, TranslationKey> = {
+    teamAPlayer1: 'recordMatch.teamAPlayer1', teamAPlayer2: 'recordMatch.teamAPlayer2',
+    teamBPlayer1: 'recordMatch.teamBPlayer1', teamBPlayer2: 'recordMatch.teamBPlayer2'
   };
   readonly form = this.fb.nonNullable.group({
     teamAPlayer1: ['', Validators.required], teamAPlayer2: ['', Validators.required],
     teamBPlayer1: ['', Validators.required], teamBPlayer2: ['', Validators.required],
-    targetScore: [10, [Validators.required, Validators.min(1), Validators.max(99)]]
+    targetScore: [5, [Validators.required, Validators.min(1), Validators.max(99)]]
   });
 
   readonly players = signal<Player[]>([]);
@@ -285,7 +293,7 @@ export class LiveMatchComponent {
   readonly result = signal<RecordMatchResult | null>(null);
 
   private ids: { a1: string; a2: string; b1: string; b2: string } = { a1: '', a2: '', b1: '', b2: '' };
-  readonly targetScore = signal(10);
+  readonly targetScore = signal(5);
   readonly scoreA = signal(0);
   readonly scoreB = signal(0);
   readonly history = signal<('A' | 'B')[]>([]);
@@ -310,11 +318,23 @@ export class LiveMatchComponent {
     if (!a1 || !a2 || !b1 || !b2) return null;
     const winner = this.leadingTeam() as 'A' | 'B';
     const proj = this.eloService.project([a1.elo, a2.elo], [b1.elo, b2.elo], winner);
+    const project = (p: Player, delta: number) => {
+      const rankBefore = this.rankService.calculate(p.elo, p.placementMatches);
+      const rankAfter = this.rankService.calculate(p.elo + delta, p.placementMatches + 1);
+      const rankBeforeLabel = this.rankService.label(rankBefore);
+      const rankAfterLabel = this.rankService.label(rankAfter);
+      return {
+        playerId: p.id, displayName: p.displayName, delta,
+        rankBeforeLabel, rrBefore: rankBefore.rr,
+        rankAfterLabel, rrAfter: rankAfter.rr,
+        changed: rankBeforeLabel !== rankAfterLabel || rankBefore.rr !== rankAfter.rr
+      };
+    };
     return [
-      { playerId: a1.id, displayName: a1.displayName, delta: proj.deltaA },
-      { playerId: a2.id, displayName: a2.displayName, delta: proj.deltaA },
-      { playerId: b1.id, displayName: b1.displayName, delta: proj.deltaB },
-      { playerId: b2.id, displayName: b2.displayName, delta: proj.deltaB }
+      project(a1, proj.deltaA),
+      project(a2, proj.deltaA),
+      project(b1, proj.deltaB),
+      project(b2, proj.deltaB)
     ];
   });
 
@@ -327,21 +347,47 @@ export class LiveMatchComponent {
     try {
       this.players.set(await this.playerService.listActive());
     } catch {
-      this.snackBar.open('Players could not be loaded.', 'Close', { duration: 4000 });
+      this.snackBar.open(this.i18n.t('live.playersLoadError'), this.i18n.t('common.close'), { duration: 4000 });
       return;
     }
-    this.restore();
+    if (!this.prefillFromState()) {
+      this.restore();
+    }
+  }
+
+  /**
+   * Generate Teams can hand off its generated matchup via router `state`
+   * (see RandomTeamsComponent.liveModeState) so the player doesn't have to
+   * re-pick all four players here. Only pre-fills the setup form -- the
+   * player still confirms the target score and taps Start. A persisted
+   * in-progress match (from `restore()`) always takes priority in practice
+   * since `history.state` is only present right after that specific
+   * navigation, but we still only fall back to `restore()` when there's no
+   * valid incoming state.
+   */
+  private prefillFromState(): boolean {
+    const state = history.state as Partial<Record<'teamAPlayer1' | 'teamAPlayer2' | 'teamBPlayer1' | 'teamBPlayer2', string>> | null;
+    if (!state) return false;
+    const ids = [state.teamAPlayer1, state.teamAPlayer2, state.teamBPlayer1, state.teamBPlayer2];
+    if (ids.some(id => !id)) return false;
+    const known = new Set(this.players().map(p => p.id));
+    if (new Set(ids).size !== 4 || ids.some(id => !known.has(id!))) return false;
+    this.form.patchValue({
+      teamAPlayer1: state.teamAPlayer1, teamAPlayer2: state.teamAPlayer2,
+      teamBPlayer1: state.teamBPlayer1, teamBPlayer2: state.teamBPlayer2
+    });
+    return true;
   }
 
   nameOf(playerId: string): string {
-    return this.players().find(p => p.id === playerId)?.displayName ?? 'Unknown player';
+    return this.players().find(p => p.id === playerId)?.displayName ?? this.i18n.t('common.unknownPlayer');
   }
 
   start(): void {
     if (this.form.invalid) return;
     const value = this.form.getRawValue();
     const ids = [value.teamAPlayer1, value.teamAPlayer2, value.teamBPlayer1, value.teamBPlayer2];
-    if (new Set(ids).size !== 4) { this.snackBar.open('Select four distinct players.', 'Close', { duration: 3000 }); return; }
+    if (new Set(ids).size !== 4) { this.snackBar.open(this.i18n.t('live.selectFourDistinct'), this.i18n.t('common.close'), { duration: 3000 }); return; }
     this.ids = { a1: value.teamAPlayer1, a2: value.teamAPlayer2, b1: value.teamBPlayer1, b2: value.teamBPlayer2 };
     this.targetScore.set(value.targetScore);
     this.scoreA.set(0);
@@ -391,7 +437,7 @@ export class LiveMatchComponent {
       this.result.set(recorded);
       this.clearPersisted();
     } catch (error) {
-      this.snackBar.open(error instanceof Error ? error.message : 'Could not record match.', 'Close', { duration: 4000 });
+      this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('live.recordError'), this.i18n.t('common.close'), { duration: 4000 });
     } finally {
       this.submitting.set(false);
     }
@@ -405,7 +451,7 @@ export class LiveMatchComponent {
 
   startAnother(): void {
     this.result.set(null);
-    this.form.reset({ targetScore: 10 });
+    this.form.reset({ targetScore: 5 });
     this.phase.set('setup');
   }
 
@@ -435,7 +481,7 @@ export class LiveMatchComponent {
     const wantedIds = [saved.teamAPlayer1, saved.teamAPlayer2, saved.teamBPlayer1, saved.teamBPlayer2];
     if (wantedIds.some(id => !known.has(id))) {
       this.clearPersisted();
-      this.snackBar.open('Your in-progress live match involved a player who is no longer active, so it was discarded.', 'Close', { duration: 6000 });
+      this.snackBar.open(this.i18n.t('live.discardedInactivePlayer'), this.i18n.t('common.close'), { duration: 6000 });
       return;
     }
 
@@ -446,6 +492,6 @@ export class LiveMatchComponent {
     this.history.set(saved.history);
     this.startedAt = saved.startedAt;
     this.phase.set('live');
-    this.snackBar.open('Resumed your in-progress live match.', 'Close', { duration: 3000 });
+    this.snackBar.open(this.i18n.t('live.resumed'), this.i18n.t('common.close'), { duration: 3000 });
   }
 }

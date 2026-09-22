@@ -4,7 +4,7 @@
   <mat-toolbar class="app-toolbar">
     <a class="brand" routerLink="/">
       <mat-icon aria-hidden="true">sports_soccer</mat-icon>
-      <span>Table Football Ranked</span>
+      <span>{{ i18n.t('app.brand') }}</span>
     </a>
 
     <span class="toolbar-spacer"></span>
@@ -13,34 +13,36 @@
       @for (link of navLinks; track link.path) {
         <a mat-button [routerLink]="link.path" routerLinkActive="active">
           <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
-          {{ link.label }}
+          {{ i18n.t(link.labelKey) }}
         </a>
       }
     </nav>
 
     <a mat-flat-button color="primary" routerLink="/live" class="record-cta">
       <mat-icon aria-hidden="true">bolt</mat-icon>
-      <span class="record-cta-label">Live Match</span>
+      <span class="record-cta-label">{{ i18n.t('nav.liveMatch') }}</span>
     </a>
 
-    <a mat-icon-button routerLink="/how-it-works" matTooltip="How ranking works" aria-label="How ranking works">
+    <a mat-icon-button routerLink="/how-it-works" [matTooltip]="i18n.t('nav.howItWorks')" [attr.aria-label]="i18n.t('nav.howItWorks')">
       <mat-icon>help_outline</mat-icon>
     </a>
 
-    <button mat-icon-button class="mobile-menu-trigger" [matMenuTriggerFor]="mobileMenu" aria-label="Open navigation menu">
+    <app-language-switcher />
+
+    <button mat-icon-button class="mobile-menu-trigger" [matMenuTriggerFor]="mobileMenu" [attr.aria-label]="i18n.t('nav.openMenu')">
       <mat-icon>menu</mat-icon>
     </button>
     <mat-menu #mobileMenu="matMenu">
       @for (link of navLinks; track link.path) {
         <a mat-menu-item [routerLink]="link.path" routerLinkActive="active">
           <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
-          <span>{{ link.label }}</span>
+          <span>{{ i18n.t(link.labelKey) }}</span>
         </a>
       }
     </mat-menu>
 
     @if (gate.required) {
-      <button mat-icon-button (click)="gate.lock()" matTooltip="Lock (require the passphrase again)" aria-label="Lock">
+      <button mat-icon-button (click)="gate.lock()" [matTooltip]="i18n.t('nav.lockTooltip')" [attr.aria-label]="i18n.t('nav.lock')">
         <mat-icon>lock</mat-icon>
       </button>
     }

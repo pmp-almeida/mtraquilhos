@@ -5,6 +5,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatchSummary } from '../../core/models/match';
 import { MatchService } from '../../core/services/match.service';
 import { PlayerService } from '../../core/services/player.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-match-history',
@@ -12,24 +13,24 @@ import { PlayerService } from '../../core/services/player.service';
   imports: [DatePipe, MatCardModule, MatChipsModule],
   template: `
     <section class="heading">
-      <p class="tf-eyebrow">RECENT RESULTS</p>
-      <h1>Match history</h1>
-      <p>Completed matches are immutable and processed by the Supabase RPC.</p>
+      <p class="tf-eyebrow">{{ i18n.t('matchHistory.eyebrow') }}</p>
+      <h1>{{ i18n.t('matchHistory.title') }}</h1>
+      <p>{{ i18n.t('matchHistory.subtitle') }}</p>
     </section>
     <mat-card>
       <mat-card-content>
         @if (error) { <p class="tf-error">{{ error }}</p> }
-        @if (!matches().length && !error) { <p class="tf-empty">No matches recorded yet.</p> }
+        @if (!matches().length && !error) { <p class="tf-empty">{{ i18n.t('matchHistory.noMatches') }}</p> }
         @for (match of matches(); track match.id) {
           <div class="row">
             <div class="teams">
               <span class="team" [class.winner]="match.winner === 'A'">{{ teamNames(match.teamAPlayerIds) }}</span>
-              <span class="vs">vs</span>
+              <span class="vs">{{ i18n.t('common.vs') }}</span>
               <span class="team" [class.winner]="match.winner === 'B'">{{ teamNames(match.teamBPlayerIds) }}</span>
             </div>
             <div class="meta">
-              <small>{{ match.playedAt | date:'medium' }}</small>
-              <span class="score">{{ match.scoreA === null ? 'Score not recorded' : match.scoreA + ' – ' + match.scoreB }}</span>
+              <small>{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</small>
+              <span class="score">{{ match.scoreA === null ? i18n.t('matchHistory.scoreNotRecorded') : match.scoreA + ' – ' + match.scoreB }}</span>
             </div>
           </div>
         }
@@ -52,6 +53,7 @@ import { PlayerService } from '../../core/services/player.service';
 export class MatchHistoryComponent {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
+  protected readonly i18n = inject(I18nService);
   readonly matches = signal<MatchSummary[]>([]);
   private names: Record<string, string> = {};
   error = '';
@@ -62,11 +64,11 @@ export class MatchHistoryComponent {
       this.matches.set(matches);
       this.names = names;
     } catch {
-      this.error = 'Match history could not be loaded. Check the Supabase configuration.';
+      this.error = this.i18n.t('matchHistory.loadError');
     }
   }
 
   teamNames(ids: [string, string]): string {
-    return ids.map(id => this.names[id] ?? 'Unknown').join(' & ');
+    return ids.map(id => this.names[id] ?? this.i18n.t('common.unknownPlayer')).join(' & ');
   }
 }
