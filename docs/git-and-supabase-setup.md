@@ -32,7 +32,23 @@ order, before using the deployed application:
 5. `20260922151500_seasons.sql` -- adds the `seasons` and
    `player_season_stats` tables and the `start_season` RPC, and redefines
    `record_match` to stamp the active season onto every match.
+6. `20260922155000_fix_placement_completion_constraint_race.sql` --
+   **important bug fix, apply this even if you don't want 10 placement
+   matches.** The original `record_match` wrote a player's placement
+   completion and their resulting rank in two separate `UPDATE`s; Postgres
+   checks constraints after every statement, so the moment a player's
+   placement count reached the required number, the first `UPDATE` alone
+   violated a check constraint and the whole match was rejected with a 400.
+   No data was corrupted (the failing statement rolls back), but nobody can
+   finish placement without this migration.
+7. `20260922160000_placement_matches_ten.sql` -- raises the placement
+   requirement from 5 to 10 matches (players table constraints and another
+   `record_match` redefinition, built on the fix above). Players who already
+   finished placement under the old rule of 5 keep their earned rank; only
+   players still mid-placement, and every new player from this point on,
+   need 10.
 
 If some of these were already applied from an earlier deployment, apply only
 the ones you're missing -- each migration is additive and safe to run once,
-in order.
+in order. If you're hitting a 400 with `players_check1` when someone
+finishes placement, you're missing migration 6 above.

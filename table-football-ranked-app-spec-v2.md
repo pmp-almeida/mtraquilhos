@@ -78,7 +78,7 @@ Each player has:
 - `active`
 - `created_at`
 
-Every new player starts **Unranked** and must complete **5 placement matches** before receiving a visible rank.
+Every new player starts **Unranked** and must complete **10 placement matches** before receiving a visible rank.
 
 During placements:
 
@@ -87,13 +87,13 @@ During placements:
 - RR: not displayed
 - Demotion Shield: inactive
 - Demotion pending: false
-- Placement matches played: `0/5`
+- Placement matches played: `0/10`
 
 The 520 starting Elo is the hidden rating baseline. It is used by the Elo system during placement matches.
 
-After the player's fifth placement match, their current Elo is converted into their initial visible rank and RR using the normal rank/RR thresholds defined below.
+After the player's tenth placement match, their current Elo is converted into their initial visible rank and RR using the normal rank/RR thresholds defined below.
 
-The initial placement result is therefore determined by the player's performance across the 5 placement matches rather than by immediately assigning Iron I.
+The initial placement result is therefore determined by the player's performance across the 10 placement matches rather than by immediately assigning Iron I.
 
 ---
 
@@ -355,7 +355,7 @@ The hidden starting Elo is:
 
 A new player is **Unranked**, so they do not receive RR while completing placements.
 
-After the fifth placement match, calculate the player's rank from their resulting Elo using the normal thresholds.
+After the tenth placement match, calculate the player's rank from their resulting Elo using the normal thresholds.
 
 If the resulting Elo is 520, for example:
 
@@ -365,7 +365,7 @@ If the resulting Elo is 520, for example:
 
 Thus 520 Elo remains the canonical baseline for the ranking system, but it is no longer an automatic starting rank.
 
-The player must complete all 5 placement matches before this rank becomes visible.
+The player must complete all 10 placement matches before this rank becomes visible.
 
 ## Examples
 
@@ -394,21 +394,21 @@ Gold I:
 
 # 13. Placement Matches
 
-Every new player must complete exactly **5 placement matches** before becoming ranked.
+Every new player must complete exactly **10 placement matches** before becoming ranked.
 
 ## Placement State
 
 A player is considered unranked while:
 
 ```text
-placement_matches_played < 5
+placement_matches_played < 10
 ```
 
 Display:
 
 ```text
 Unranked
-Placement Matches: X/5
+Placement Matches: X/10
 ```
 
 Do not display a normal tier, division, or RR during placements.
@@ -435,7 +435,7 @@ After each placement match:
 placement_matches_played += 1
 ```
 
-After the fifth placement match:
+After the tenth placement match:
 
 ```text
 placement_complete = true
@@ -450,10 +450,10 @@ A player starts:
 ```text
 Unranked
 520 Elo
-0/5 placements
+0/10 placements
 ```
 
-After five matches their Elo is:
+After ten matches their Elo is:
 
 ```text
 548 Elo
@@ -508,7 +508,7 @@ Champion
 0 RR
 ```
 
-There is no placement-specific rank floor. A player's first rank is entirely determined by their Elo after the fifth placement match.
+There is no placement-specific rank floor. A player's first rank is entirely determined by their Elo after the tenth placement match.
 
 ## Placement UI
 
@@ -518,13 +518,13 @@ The player profile should clearly show:
 Unranked
 
 Placement Matches
-3 / 5
+3 / 10
 
 Current Elo
 548
 ```
 
-After the fifth placement:
+After the tenth placement:
 
 ```text
 Placement Complete
@@ -571,12 +571,12 @@ to the match model.
 A placement match should show:
 
 ```text
-Placement Match 3/5
+Placement Match 3/10
 ```
 
 in the match history.
 
-Once the fifth placement match is complete, subsequent matches are regular ranked matches.
+Once the tenth placement match is complete, subsequent matches are regular ranked matches.
 
 ---
 
@@ -1003,10 +1003,10 @@ placement_complete = false
 active = true
 ```
 
-After the fifth placement match:
+After the tenth placement match:
 
 ```text
-placement_matches_played = 5
+placement_matches_played = 10
 placement_complete = true
 ```
 
@@ -1040,7 +1040,7 @@ For placement matches:
 
 ```text
 is_placement_match = true
-placement_number = 1..5
+placement_number = 1..10
 ```
 
 For regular ranked matches:
@@ -1104,9 +1104,9 @@ It must:
 10. Apply identical team deltas to both teammates.
 11. Update peak Elo values.
 12. Increment placement count when applicable.
-13. Determine whether the player has completed their fifth placement.
+13. Determine whether the player has completed their tenth placement.
 14. Keep unranked players as `Unranked` with no RR while placements remain incomplete.
-15. Reveal the initial rank and RR after placement match 5.
+15. Reveal the initial rank and RR after placement match 10.
 16. Process rank changes for already-ranked players.
 17. Process Demotion Shield only for already-ranked players.
 18. Calculate resulting RR.
@@ -1161,7 +1161,7 @@ If the group contains players still completing placements, clearly indicate thei
 Example:
 
 ```text
-Unranked — 3/5 placements
+Unranked — 3/10 placements
 ```
 
 ---
@@ -1275,7 +1275,7 @@ Player Name
 Unranked
 
 Placement Matches
-3 / 5
+3 / 10
 
 520 Elo
 Peak: 548 Elo
@@ -1368,7 +1368,7 @@ Unranked, Lixo, and Champion should not show a normal RR progress bar.
 Unranked should instead show placement progress:
 
 ```text
-3 / 5 Placement Matches
+3 / 10 Placement Matches
 ```
 
 
@@ -1471,11 +1471,11 @@ Losses: 0
 Win Rate: 0%
 Best Teammate: —
 Worst Teammate: —
-Placement Matches: 0 / 5
+Placement Matches: 0 / 10
 Demotion Shield: Inactive
 ```
 
-After five placement matches, the player's final Elo determines their initial rank.
+After ten placement matches, the player's final Elo determines their initial rank.
 
 Example:
 
@@ -1484,7 +1484,7 @@ Final placement Elo: 520
 
 Rank: Iron I
 RR: 50
-Placement Matches: 5 / 5
+Placement Matches: 10 / 10
 ```
 
 This is the canonical placement flow.
@@ -1528,7 +1528,7 @@ Create automated tests covering:
 - Starting Elo is 520.
 - K-factor is 32.
 - Every new player starts Unranked.
-- A player remains Unranked until exactly 5 placement matches are completed.
+- A player remains Unranked until exactly 10 placement matches are completed.
 - Placement matches use the normal Elo formula.
 
 - Equal teams produce equal/opposite deltas.
@@ -1542,7 +1542,7 @@ Create automated tests covering:
 - Every threshold.
 - Lixo below 500.
 - New player is Unranked before placements are complete.
-- Rank is revealed after the fifth placement match.
+- Rank is revealed after the tenth placement match.
 - Final placement Elo determines the initial rank.
 
 - Iron I begins at 500.
@@ -1562,11 +1562,11 @@ Create automated tests covering:
 
 - Placement count starts at 0.
 - Placement count increments exactly once per completed placement match.
-- A player becomes ranked after the fifth placement match.
+- A player becomes ranked after the tenth placement match.
 - Placement matches contribute to W/L, win rate, Elo history, and teammate statistics.
 - Placement matches cannot trigger demotion.
 - Placement matches do not use a Demotion Shield.
-- The initial rank and RR are derived from Elo after match 5.
+- The initial rank and RR are derived from Elo after match 10.
 
 ## Demotion Shield
 
@@ -1712,10 +1712,10 @@ The implementation must follow these rules exactly:
 ```text
 Starting Elo = 520
 Starting Rank = Unranked
-Placement Matches Required = 5
+Placement Matches Required = 10
 Starting RR = not displayed during placements
 
-After 5 placement matches:
+After 10 placement matches:
 Rank and RR are derived from current Elo.
 
 At 520 Elo after placements:
@@ -1782,7 +1782,7 @@ Prioritize:
 
 1. Correct Elo calculations.
 2. Correct rank/RR calculations.
-3. Correct placement flow: **Unranked → 5 placement matches → initial rank**.
+3. Correct placement flow: **Unranked → 10 placement matches → initial rank**.
 4. Correct starting hidden Elo of **520**.
 5. Correct result of **Iron I / 50 RR when final placement Elo is 520**.
 6. Correct Demotion Shield behavior after a player is ranked.
@@ -1872,3 +1872,10 @@ Recording where this pass closed gaps against the original spec, and one deliber
 - **Closed:** Section 34's Player Profile screen did not exist (only a flat players list did). A full profile page now exists per player: rank, RR, Elo, peak Elo, core stats, streaks, biggest Elo gain/loss, the full teammate table with Best/Worst Teammate, season history, and recent matches.
 - **Deviation:** Section 29 suggests `is_placement_match` and `placement_number` columns on the `matches` table. These were not added. A single match can be a placement match for one player and a regular ranked match for their teammates (each player's placement progress advances independently), so a match-level flag cannot represent this correctly. Placement status is instead read per player from `rating_events.placement_matches_before` / `placement_matches_after` (already part of the original schema), which is unambiguous. Section 13's "Placement Match History" requirement — that placement progress is visible and tied to specific matches — is still met, just per player rather than per match.
 - **UI framework:** Section 35 is unchanged in substance (Angular Material) but the app now uses a dark, Material 3 "competitive" theme (red primary, tier-colored rank badges modeled loosely on Valorant's rank-color ladder) rather than the default light azure/blue theme, per section 35's "competitive, sporty, game-like" requirement.
+- **Fixed (production bug):** `record_match` originally wrote a player's placement-completion flag and their resulting visible rank in two separate `UPDATE` statements. Postgres validates table CHECK constraints at the end of every statement, not just at commit, so the moment any player's placement count first reached the required number, the first `UPDATE` alone produced a row with `placement_complete = true` and `visible_rank` still `'Unranked'` -- violating the section-4 invariant that a player is Unranked if and only if placement is incomplete -- and the entire match was rejected before the second `UPDATE` (which would have set the real rank) ever ran. Every field for a player is now computed first and written in a single `UPDATE`, so the row is only ever checked in its final, consistent state. No historical data was affected, since the failing statement rolled back.
+
+---
+
+# 52. Addendum — Placement Matches Required Raised to 10
+
+Section 4 and section 13 originally required exactly **5** placement matches. This is raised to **10**, effective for every player who has not yet finished placement as of this change; players who already completed placement under the old rule of 5 keep the rank they earned and are not re-placed. Every other placement rule in sections 4, 13, 39, 41, and 46-47 (Elo mechanics, no RR display, no Demotion Shield, contributing to W/L and teammate stats, the reveal-after-completion flow) is unchanged -- only the number 5 becomes 10 everywhere it specified the placement-match count. `PLACEMENT_MATCHES_REQUIRED` in `rank.constants.ts` is the single frontend source of truth; the backend enforces the same number via the `players` table's `placement_matches_played`/`placement_complete` CHECK constraints and inside `record_match` (see `supabase/migrations/20260922160000_placement_matches_ten.sql`).

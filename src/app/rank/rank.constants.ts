@@ -8,7 +8,7 @@ export interface RankThreshold {
 
 export const STARTING_ELO = 520;
 export const K_FACTOR = 32;
-export const PLACEMENT_MATCHES_REQUIRED = 5;
+export const PLACEMENT_MATCHES_REQUIRED = 10;
 
 /** Elo at and above which a player is Champion (no division, no RR). */
 export const CHAMPION_FLOOR = 1340;

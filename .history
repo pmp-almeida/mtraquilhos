@@ -234,3 +234,93 @@ fix, check: (1) that migration 3
 (`20260922140800_allow_public_player_creation.sql`) is actually applied to
 the live Supabase project, and (2) that `SUPABASE_URL`/`SUPABASE_ANON_KEY`
 in the running build match that project.
+
+---
+
+## 2026-09-22 — Follow-up: placement-matches 5→10, and a live production bug fix
+
+**Branch:** `develop`
+**Requested by:** Pedro, via Claude Cowork chat ("How easy is to change the placements matches from 5 to 10?" -> "Yes")
+
+### The bug that surfaced mid-task (fix this first if applying selectively)
+
+While testing this change, Pedro hit a real 400 error recording a match once
+a player (Duarte) reached exactly 5 placement matches:
+
+```
+new row for relation "players" violates check constraint "players_check1"
+Failing row contains (..., Unranked, null, 5, t, f, f, t, 3, 2, ...)
+```
+
+Root cause, present since the very first migration (`20260916180000`) and
+carried into every later redefinition of `record_match` (the Demotion
+Shield fix, Seasons): the function updated `placement_matches_played` /
+`placement_complete` in one `UPDATE`, and only then, in a *separate* later
+`UPDATE`, set `visible_rank`/`rr` once placement was complete. Postgres
+validates (non-deferred) CHECK constraints at the end of **every**
+statement, not just at commit. So the instant a player's placement count
+first reached the required number, the first `UPDATE` alone produced a row
+with `placement_complete = true` while `visible_rank` was still
+`'Unranked'` -- violating `players_check1`
+(`(visible_rank = 'Unranked') = not placement_complete`) -- and the whole
+`record_match` call (and therefore the whole 2v2 match, for all four
+players) was rolled back before the second `UPDATE` ever ran. No data was
+corrupted -- the failing statement rolls back -- but nobody could finish
+placement.
+
+**Fix:** `supabase/migrations/20260922155000_fix_placement_completion_constraint_race.sql`
+redefines `record_match` so every field for a player (Elo, win/loss,
+placement count/completion, resulting rank/RR, Demotion Shield state) is
+computed in PL/pgSQL variables first and written in a **single** `UPDATE`,
+so the row is only ever checked by Postgres in its final, consistent state.
+This migration keeps the placement requirement at 5 -- it's a pure bug fix,
+independent of the 5→10 change below, and should be applied even if you
+don't want 10 placement matches.
+
+### The requested change: placement matches required, 5 → 10
+
+- `src/app/rank/rank.constants.ts` -- `PLACEMENT_MATCHES_REQUIRED` changed
+  to `10` (this was already edited to `10` in the working tree when this
+  turn started, presumably by Pedro locally while testing; verified the
+  diff was exactly this one line and kept it).
+- `supabase/migrations/20260922160000_placement_matches_ten.sql` --
+  redefines `record_match` again (same single-`UPDATE` structure as the fix
+  above, with the threshold changed to 10), and alters the two `players`
+  table CHECK constraints (`placement_matches_played between 0 and 5` and
+  `placement_complete = (placement_matches_played = 5)`) to use 10 instead.
+  Since those constraints were originally unnamed, the migration looks up
+  their actual auto-generated names via `pg_constraint`/
+  `pg_get_constraintdef` rather than guessing, and drops whichever ones it
+  finds.
+- **Players who already finished placement under the old rule of 5 keep
+  their earned rank** -- `placement_complete` is a stored column, not
+  recomputed, so this is not retroactive. Only players still mid-placement,
+  and every new player from now on, need 10.
+- `docs/git-and-supabase-setup.md` -- lists both new migrations (6 and 7)
+  in order, with a note that migration 6 (the bug fix) matters independently
+  of whether 10 is wanted.
+- `table-football-ranked-app-spec-v2.md` (repo copy + Claude Project doc,
+  kept identical) -- every "5 placement matches" / "X/5" / "fifth
+  placement" reference across the doc (sections 4, 13, 39, 41, 46, 47, plus
+  UI-mockup example text) updated to 10; addendum section 51 gained a note
+  about the bug fix, and a new addendum section 52 documents the 5→10
+  change itself.
+
+### Verification performed
+
+- `npx tsc -p tsconfig.app.json --noEmit` -- clean, no errors (confirms the
+  `rank.constants.ts` change type-checks and nothing else references the
+  literal `5`).
+- SQL was not run against a live database in this sandbox (no `psql`/Docker
+  available here) -- reviewed by mechanical diff instead: both new
+  migrations' `record_match` bodies are byte-identical after normalizing
+  `5`/`10` to a placeholder, confirming the only intended difference
+  between them is the threshold and the constraint-lookup block added in
+  the second one. Recommend applying both migrations to a non-production
+  Supabase project (or via `supabase db diff`) before production if
+  possible.
+
+### Not done
+
+- `ng test` still not run in this sandbox (see the original entry above);
+  the same recommendation to run it locally applies to this change too.
