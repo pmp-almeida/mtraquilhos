@@ -1879,3 +1879,19 @@ Recording where this pass closed gaps against the original spec, and one deliber
 # 52. Addendum — Placement Matches Required Raised to 10
 
 Section 4 and section 13 originally required exactly **5** placement matches. This is raised to **10**, effective for every player who has not yet finished placement as of this change; players who already completed placement under the old rule of 5 keep the rank they earned and are not re-placed. Every other placement rule in sections 4, 13, 39, 41, and 46-47 (Elo mechanics, no RR display, no Demotion Shield, contributing to W/L and teammate stats, the reveal-after-completion flow) is unchanged -- only the number 5 becomes 10 everywhere it specified the placement-match count. `PLACEMENT_MATCHES_REQUIRED` in `rank.constants.ts` is the single frontend source of truth; the backend enforces the same number via the `players` table's `placement_matches_played`/`placement_complete` CHECK constraints and inside `record_match` (see `supabase/migrations/20260922160000_placement_matches_ten.sql`).
+
+---
+
+# 53. Addendum — Fixed: Ranked Players Incorrectly Required an Always-Active Demotion Shield
+
+A third bug, uncovered by production testing after the two fixes above: the original `players` table CHECK constraint enforcing section 18's shield rules was written as a biconditional --
+
+```text
+(visible_rank = 'Unranked') = (NOT demotion_shield_active)
+```
+
+-- rather than the one-directional rule section 18 actually specifies (an Unranked player, who has no rank yet, cannot have an active shield). Because `=` makes both directions mandatory, this constraint also required the reverse: every *ranked* player had to have `demotion_shield_active = true` at all times. Per section 18, the shield is optional and inactive by default, only arming once a ranked player hits a rank floor -- so "ranked with the shield off" is the normal state for nearly every player nearly all the time, and this constraint rejected it outright.
+
+This went undetected through every previous test match because, until section 52's fix, no player had ever actually finished placement and had a match write their row afterward -- every match so far happened while its players were still Unranked, where the constraint's (correct) other half was the only one ever exercised. The first player to complete placement and reach ranked status immediately hit it.
+
+Fixed in `supabase/migrations/20260922162000_fix_ranked_demotion_shield_check.sql`, which replaces the biconditional with `check (not (visible_rank = 'Unranked' and demotion_shield_active))` -- forbidding only the one truly invalid combination and leaving both ranked states (shield on or off) valid.

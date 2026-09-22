@@ -399,3 +399,45 @@ reasoning from static file review:
 
 No further action needed from Pedro -- the fix is live. He can retry
 recording Duarte's match in the app.
+
+---
+
+## 2026-09-22 — Third bug: players_check3 required every ranked player to always have an active shield
+
+Testing continued after the placement-ten fix: Pedro tried recording
+Andre & Diogo vs Duarte & Matheus (Team B won) and got a third 400, this
+time `players_check3`:
+
+```
+Failing row contains (..., Diogo, ..., Iron II, 65, 10, t, f, f, t, 7, 3, ...)
+```
+
+Diogo was finishing his 10th (final) placement match on this exact match
+(and losing it). Checked directly against the live database via the
+now-connected Supabase MCP client:
+
+```
+players_check3: CHECK (((visible_rank = 'Unranked') = (NOT demotion_shield_active)))
+```
+
+That `=` is a biconditional, not the one-directional rule section 18
+actually specifies. Besides correctly forbidding an Unranked player from
+having an active shield, it also forced the reverse: every *ranked* player
+had to have `demotion_shield_active = true` at all times, which is never
+true in normal play (the shield starts inactive and only arms at a rank
+floor). This existed since the very first migration but had never been
+exercised -- until the placement-ten fix landed earlier today, no match in
+this database's history had ever been recorded for a player who had
+already left Unranked; every match so far happened during someone's
+placement run.
+
+**Fix:** `supabase/migrations/20260922162000_fix_ranked_demotion_shield_check.sql`
+drops the biconditional and replaces it with
+`check (not (visible_rank = 'Unranked' and demotion_shield_active))` --
+forbidding only the actually-invalid combination. Applied directly to the
+live project via the Supabase MCP connector and verified by querying
+`pg_constraint` afterward; also written to the repo migration file,
+`docs/git-and-supabase-setup.md` (migration 8), and spec addendum section
+53.
+
+Pedro can retry recording that match now.
