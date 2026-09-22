@@ -43,6 +43,7 @@ export const EN_GB = {
   'common.elo': 'Elo',
   'common.rr': 'RR',
   'common.dash': '—',
+  'common.unrankedProgress': 'Unranked · {played}/{total}',
   'common.loadError': 'Could not connect. Check the Supabase configuration.',
 
   // ---- Passphrase gate ----

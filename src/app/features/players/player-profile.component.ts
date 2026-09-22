@@ -11,6 +11,7 @@ import { MatchSummary } from '../../core/models/match';
 import { PlayerSeasonStats } from '../../core/models/season';
 import { TeammateStatsService, TeammateStat } from '../../rank/teammate-stats.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-player-profile',
@@ -18,47 +19,47 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
   imports: [DatePipe, RouterLink, MatCardModule, MatIconModule, RankBadgeComponent],
   template: `
     @if (loading()) {
-      <p class="tf-empty">Loading player…</p>
+      <p class="tf-empty">{{ i18n.t('playerProfile.loading') }}</p>
     } @else if (error) {
       <p class="tf-error">{{ error }}</p>
     } @else if (player(); as p) {
       <section class="header">
         <div>
-          <p class="tf-eyebrow">PLAYER PROFILE</p>
+          <p class="tf-eyebrow">{{ i18n.t('playerProfile.eyebrow') }}</p>
           <h1>{{ p.displayName }}</h1>
           <app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" />
         </div>
         <div class="elo-block">
           <span class="elo">{{ p.elo }}</span>
-          <span class="elo-label">Current Elo &middot; Peak {{ p.peakElo }}</span>
+          <span class="elo-label">{{ i18n.t('playerProfile.currentEloPeak', { peak: p.peakElo }) }}</span>
         </div>
       </section>
 
       <section class="stats-grid">
-        <mat-card><mat-card-content><span class="stat-label">Wins</span><strong>{{ p.wins }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Losses</span><strong>{{ p.losses }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Win rate</span><strong>{{ winRate() }}%</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Total matches</span><strong>{{ p.wins + p.losses }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Current streak</span><strong [class.tf-win]="currentStreak() > 0" [class.tf-loss]="currentStreak() < 0">{{ streakLabel(currentStreak()) }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Best win streak</span><strong>{{ bestWinStreak() }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Biggest Elo gain</span><strong class="tf-win">{{ biggestGain() !== null ? '+' + biggestGain() : '—' }}</strong></mat-card-content></mat-card>
-        <mat-card><mat-card-content><span class="stat-label">Biggest Elo loss</span><strong class="tf-loss">{{ biggestLoss() !== null ? biggestLoss() : '—' }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.wins') }}</span><strong>{{ p.wins }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.losses') }}</span><strong>{{ p.losses }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.winRate') }}</span><strong>{{ winRate() }}%</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.totalMatches') }}</span><strong>{{ p.wins + p.losses }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.currentStreak') }}</span><strong [class.tf-win]="currentStreak() > 0" [class.tf-loss]="currentStreak() < 0">{{ streakLabel(currentStreak()) }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.bestWinStreak') }}</span><strong>{{ bestWinStreak() }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.biggestGain') }}</span><strong class="tf-win">{{ biggestGain() !== null ? '+' + biggestGain() : i18n.t('common.dash') }}</strong></mat-card-content></mat-card>
+        <mat-card><mat-card-content><span class="stat-label">{{ i18n.t('playerProfile.biggestLoss') }}</span><strong class="tf-loss">{{ biggestLoss() !== null ? biggestLoss() : i18n.t('common.dash') }}</strong></mat-card-content></mat-card>
       </section>
 
       <section class="split">
         <mat-card>
-          <mat-card-header><mat-card-title>Teammates</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ i18n.t('playerProfile.teammatesTitle') }}</mat-card-title></mat-card-header>
           <mat-card-content>
             <div class="best-worst">
-              <div><span class="stat-label">Best teammate</span><strong>{{ bestTeammate() ? nameOf(bestTeammate()!.playerId) + ' — ' + pct(bestTeammate()!.winRate) + '%' : '—' }}</strong></div>
-              <div><span class="stat-label">Worst teammate</span><strong>{{ worstTeammate() ? nameOf(worstTeammate()!.playerId) + ' — ' + pct(worstTeammate()!.winRate) + '%' : '—' }}</strong></div>
+              <div><span class="stat-label">{{ i18n.t('playerProfile.bestTeammate') }}</span><strong>{{ bestTeammate() ? nameOf(bestTeammate()!.playerId) + ' — ' + pct(bestTeammate()!.winRate) + '%' : i18n.t('common.dash') }}</strong></div>
+              <div><span class="stat-label">{{ i18n.t('playerProfile.worstTeammate') }}</span><strong>{{ worstTeammate() ? nameOf(worstTeammate()!.playerId) + ' — ' + pct(worstTeammate()!.winRate) + '%' : i18n.t('common.dash') }}</strong></div>
             </div>
-            @if (!teammateStats().length) { <p class="tf-empty">No matches recorded yet.</p> }
+            @if (!teammateStats().length) { <p class="tf-empty">{{ i18n.t('playerProfile.noMatches') }}</p> }
             @for (stat of teammateStats(); track stat.playerId) {
               <div class="teammate-row">
                 <a [routerLink]="['/players', stat.playerId]">{{ nameOf(stat.playerId) }}</a>
-                <span>{{ stat.matches }} matches</span>
-                <span>{{ stat.wins }}W – {{ stat.losses }}L</span>
+                <span>{{ i18n.tCount(stat.matches, 'playerProfile.matchesCount') }}</span>
+                <span>{{ stat.wins }}{{ i18n.t('common.winAbbr') }} – {{ stat.losses }}{{ i18n.t('common.lossAbbr') }}</span>
                 <span class="win-rate">{{ pct(stat.winRate) }}%</span>
               </div>
             }
@@ -66,14 +67,14 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
         </mat-card>
 
         <mat-card>
-          <mat-card-header><mat-card-title>Season history</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ i18n.t('playerProfile.seasonHistoryTitle') }}</mat-card-title></mat-card-header>
           <mat-card-content>
-            @if (!seasonHistory().length) { <p class="tf-empty">No season history yet &mdash; seasons are optional and start fresh from the leaderboard.</p> }
+            @if (!seasonHistory().length) { <p class="tf-empty">{{ i18n.t('playerProfile.noSeasonHistory') }}</p> }
             @for (stat of seasonHistory(); track stat.seasonId) {
               <div class="season-row">
-                <span>{{ stat.finalRank ?? 'Unranked' }}{{ stat.finalRr !== null ? ' · ' + stat.finalRr + ' RR' : '' }}</span>
-                <span>Peak {{ stat.peakElo }}</span>
-                <span>{{ stat.wins }}W – {{ stat.losses }}L</span>
+                <span>{{ stat.finalRank ?? i18n.t('leaderboard.unranked') }}{{ stat.finalRr !== null ? ' · ' + stat.finalRr + ' ' + i18n.t('common.rr') : '' }}</span>
+                <span>{{ i18n.t('playerProfile.peak', { elo: stat.peakElo }) }}</span>
+                <span>{{ stat.wins }}{{ i18n.t('common.winAbbr') }} – {{ stat.losses }}{{ i18n.t('common.lossAbbr') }}</span>
               </div>
             }
           </mat-card-content>
@@ -81,14 +82,14 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
       </section>
 
       <mat-card class="matches-card">
-        <mat-card-header><mat-card-title>Recent matches</mat-card-title></mat-card-header>
+        <mat-card-header><mat-card-title>{{ i18n.t('playerProfile.recentMatchesTitle') }}</mat-card-title></mat-card-header>
         <mat-card-content>
-          @if (!matches().length) { <p class="tf-empty">No matches recorded yet.</p> }
+          @if (!matches().length) { <p class="tf-empty">{{ i18n.t('playerProfile.noMatches') }}</p> }
           @for (match of matches().slice(0, 25); track match.id) {
             <div class="match-row">
               <mat-icon [class.tf-win]="wonMatch(match)" [class.tf-loss]="!wonMatch(match)">{{ wonMatch(match) ? 'trending_up' : 'trending_down' }}</mat-icon>
-              <span>{{ match.playedAt | date:'medium' }}</span>
-              <span>vs {{ opponentNames(match) }}</span>
+              <span>{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</span>
+              <span>{{ i18n.t('playerProfile.vsOpponents', { names: opponentNames(match) }) }}</span>
             </div>
           }
         </mat-card-content>
@@ -121,6 +122,7 @@ export class PlayerProfileComponent {
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
   private readonly teammateStatsService = inject(TeammateStatsService);
+  protected readonly i18n = inject(I18nService);
 
   readonly player = signal<Player | null>(null);
   readonly matches = signal<MatchSummary[]>([]);
@@ -178,7 +180,7 @@ export class PlayerProfileComponent {
 
   async ngOnInit(): Promise<void> {
     this.playerId = this.route.snapshot.paramMap.get('id') ?? '';
-    if (!this.playerId) { this.error = 'No player specified.'; this.loading.set(false); return; }
+    if (!this.playerId) { this.error = this.i18n.t('playerProfile.noPlayerSpecified'); this.loading.set(false); return; }
     try {
       const [player, matches, names, seasonHistory, ratingEvents] = await Promise.all([
         this.playerService.getById(this.playerId),
@@ -187,24 +189,24 @@ export class PlayerProfileComponent {
         this.seasonService.historyForPlayer(this.playerId),
         this.matchService.listRatingEvents(this.playerId)
       ]);
-      if (!player) { this.error = 'Player not found.'; return; }
+      if (!player) { this.error = this.i18n.t('playerProfile.notFound'); return; }
       this.player.set(player);
       this.matches.set(matches);
       this.names.set(names);
       this.seasonHistory.set(seasonHistory);
       this.eloDeltas.set(ratingEvents.map(e => e.eloDelta));
     } catch {
-      this.error = 'Player profile could not be loaded. Check the Supabase configuration.';
+      this.error = this.i18n.t('playerProfile.loadError');
     } finally {
       this.loading.set(false);
     }
   }
 
-  nameOf(id: string): string { return this.names()[id] ?? 'Unknown player'; }
+  nameOf(id: string): string { return this.names()[id] ?? this.i18n.t('common.unknownPlayer'); }
   pct(rate: number): number { return Math.round(rate * 1000) / 10; }
   streakLabel(streak: number): string {
-    if (streak === 0) return '—';
-    return streak > 0 ? `${streak}W` : `${Math.abs(streak)}L`;
+    if (streak === 0) return this.i18n.t('common.dash');
+    return streak > 0 ? `${streak}${this.i18n.t('common.winAbbr')}` : `${Math.abs(streak)}${this.i18n.t('common.lossAbbr')}`;
   }
 
   wonMatch(match: MatchSummary): boolean {

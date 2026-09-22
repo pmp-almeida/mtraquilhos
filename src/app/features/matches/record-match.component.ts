@@ -15,6 +15,8 @@ import { PlayerService } from '../../core/services/player.service';
 import { RecordMatchResult } from '../../core/models/match';
 import { EloService } from '../../rank/elo.service';
 import { RankService } from '../../rank/rank.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslationKey } from '../../core/i18n/en-gb';
 
 interface PlayerProjection {
   playerId: string;
@@ -37,64 +39,64 @@ interface PlayerProjection {
     @if (result(); as res) {
       <mat-card class="result-card">
         <mat-card-header>
-          <mat-card-title>Match recorded</mat-card-title>
-          <mat-card-subtitle>Team {{ form.getRawValue().winner }} won &middot; expected win probability was {{ (res.expectedProbability * 100) | number:'1.0-1' }}%</mat-card-subtitle>
+          <mat-card-title>{{ i18n.t('recordMatch.recordedTitle') }}</mat-card-title>
+          <mat-card-subtitle>{{ i18n.t('recordMatch.recordedSubtitle', { team: form.getRawValue().winner, probability: (res.expectedProbability * 100 | number:'1.0-1') }) }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           @for (p of res.players; track p.playerId) {
             <div class="result-row">
               <span class="name">{{ nameOf(p.playerId) }}</span>
               <span class="delta" [class.tf-win]="p.eloDelta > 0" [class.tf-loss]="p.eloDelta < 0">
-                {{ p.eloDelta > 0 ? '+' : '' }}{{ p.eloDelta }} Elo
+                {{ p.eloDelta > 0 ? '+' : '' }}{{ p.eloDelta }} {{ i18n.t('common.elo') }}
               </span>
               <span class="rank-change">
                 {{ p.rankBefore }}
                 @if (p.rankBefore !== p.rankAfter) { <mat-icon aria-hidden="true">arrow_right_alt</mat-icon> {{ p.rankAfter }} }
               </span>
               @if (!p.demotionShieldBefore && p.demotionShieldAfter) {
-                <span class="badge shield"><mat-icon aria-hidden="true">shield</mat-icon>Demotion Shield armed</span>
+                <span class="badge shield"><mat-icon aria-hidden="true">shield</mat-icon>{{ i18n.t('recordMatch.shieldArmed') }}</span>
               }
               @if (p.demotionShieldBefore && !p.demotionShieldAfter && p.rankAfter === p.rankBefore) {
-                <span class="badge shield-saved"><mat-icon aria-hidden="true">verified</mat-icon>Shield saved the rank</span>
+                <span class="badge shield-saved"><mat-icon aria-hidden="true">verified</mat-icon>{{ i18n.t('recordMatch.shieldSaved') }}</span>
               }
               @if (p.demotionShieldBefore && !p.demotionShieldAfter && p.rankAfter !== p.rankBefore) {
-                <span class="badge demoted"><mat-icon aria-hidden="true">trending_down</mat-icon>Demoted</span>
+                <span class="badge demoted"><mat-icon aria-hidden="true">trending_down</mat-icon>{{ i18n.t('recordMatch.demoted') }}</span>
               }
             </div>
           }
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="reset()">Record another match</button>
+          <button mat-button (click)="reset()">{{ i18n.t('recordMatch.recordAnother') }}</button>
         </mat-card-actions>
       </mat-card>
     } @else {
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Record a 2v2 match</mat-card-title>
-          <mat-card-subtitle>Players and the winner are required; scores are optional.</mat-card-subtitle>
+          <mat-card-title>{{ i18n.t('recordMatch.formTitle') }}</mat-card-title>
+          <mat-card-subtitle>{{ i18n.t('recordMatch.formSubtitle') }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <form [formGroup]="form" (ngSubmit)="preview()">
             <div class="grid">
               @for (field of playerFields; track field) {
                 <mat-form-field appearance="outline">
-                  <mat-label>{{ labels[field] }}</mat-label>
+                  <mat-label>{{ i18n.t(labelKeys[field]) }}</mat-label>
                   <mat-select [formControlName]="field">
-                    <mat-option value="">Select player</mat-option>
+                    <mat-option value="">{{ i18n.t('recordMatch.selectPlayer') }}</mat-option>
                     @for (player of players(); track player.id) { <mat-option [value]="player.id">{{ player.displayName }} ({{ player.elo }})</mat-option> }
                   </mat-select>
                 </mat-form-field>
               }
-              <mat-form-field appearance="outline"><mat-label>Score A</mat-label><input matInput type="number" formControlName="scoreA" min="0" /></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>Score B</mat-label><input matInput type="number" formControlName="scoreB" min="0" /></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>{{ i18n.t('recordMatch.scoreA') }}</mat-label><input matInput type="number" formControlName="scoreA" min="0" /></mat-form-field>
+              <mat-form-field appearance="outline"><mat-label>{{ i18n.t('recordMatch.scoreB') }}</mat-label><input matInput type="number" formControlName="scoreB" min="0" /></mat-form-field>
             </div>
             <mat-radio-group formControlName="winner">
-              <mat-radio-button value="A">Team A wins</mat-radio-button>
-              <mat-radio-button value="B">Team B wins</mat-radio-button>
+              <mat-radio-button value="A">{{ i18n.t('recordMatch.teamAWins') }}</mat-radio-button>
+              <mat-radio-button value="B">{{ i18n.t('recordMatch.teamBWins') }}</mat-radio-button>
             </mat-radio-group>
             <div class="actions">
-              <button mat-button type="button" (click)="clear()">Clear</button>
-              <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Preview match</button>
+              <button mat-button type="button" (click)="clear()">{{ i18n.t('common.clear') }}</button>
+              <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">{{ i18n.t('recordMatch.previewMatch') }}</button>
             </div>
           </form>
         </mat-card-content>
@@ -102,32 +104,32 @@ interface PlayerProjection {
 
       @if (projection(); as proj) {
         <mat-card class="preview-card">
-          <mat-card-header><mat-card-title>Confirm before recording</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ i18n.t('recordMatch.confirmTitle') }}</mat-card-title></mat-card-header>
           <mat-card-content>
             <div class="teams">
               <div class="team">
-                <h3>Team A &mdash; avg {{ proj.teamAElo | number:'1.0-1' }}</h3>
+                <h3>{{ i18n.t('recordMatch.teamAAvg', { avg: (proj.teamAElo | number:'1.0-1') }) }}</h3>
                 @for (p of proj.players; track p.playerId) {
                   @if (p.team === 'A') { <div class="proj-row"><span>{{ p.displayName }}</span><span [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">{{ p.delta > 0 ? '+' : '' }}{{ p.delta }}</span></div> }
                 }
               </div>
               <div class="vs">
                 <span class="prob">{{ (proj.expectedA * 100) | number:'1.0-1' }}%</span>
-                <span class="prob-label">Team A win chance</span>
+                <span class="prob-label">{{ i18n.t('recordMatch.teamAWinChance') }}</span>
               </div>
               <div class="team">
-                <h3>Team B &mdash; avg {{ proj.teamBElo | number:'1.0-1' }}</h3>
+                <h3>{{ i18n.t('recordMatch.teamBAvg', { avg: (proj.teamBElo | number:'1.0-1') }) }}</h3>
                 @for (p of proj.players; track p.playerId) {
                   @if (p.team === 'B') { <div class="proj-row"><span>{{ p.displayName }}</span><span [class.tf-win]="p.delta > 0" [class.tf-loss]="p.delta < 0">{{ p.delta > 0 ? '+' : '' }}{{ p.delta }}</span></div> }
                 }
               </div>
             </div>
-            <p class="disclaimer">Projected Elo change only. The server confirms the exact result, including any Demotion Shield or rank change.</p>
+            <p class="disclaimer">{{ i18n.t('recordMatch.disclaimer') }}</p>
           </mat-card-content>
           <mat-card-actions align="end">
-            <button mat-button type="button" (click)="cancelPreview()">Back</button>
+            <button mat-button type="button" (click)="cancelPreview()">{{ i18n.t('common.back') }}</button>
             <button mat-flat-button color="primary" type="button" [disabled]="saving()" (click)="confirm()">
-              {{ saving() ? 'Recording…' : 'Confirm & record' }}
+              {{ saving() ? i18n.t('recordMatch.recording') : i18n.t('recordMatch.confirmAndRecord') }}
             </button>
           </mat-card-actions>
         </mat-card>
@@ -168,11 +170,12 @@ export class RecordMatchComponent {
   private readonly eloService = inject(EloService);
   private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
+  protected readonly i18n = inject(I18nService);
 
   readonly playerFields = ['teamAPlayer1', 'teamAPlayer2', 'teamBPlayer1', 'teamBPlayer2'] as const;
-  readonly labels: Record<string, string> = {
-    teamAPlayer1: 'Team A player 1', teamAPlayer2: 'Team A player 2',
-    teamBPlayer1: 'Team B player 1', teamBPlayer2: 'Team B player 2'
+  readonly labelKeys: Record<string, TranslationKey> = {
+    teamAPlayer1: 'recordMatch.teamAPlayer1', teamAPlayer2: 'recordMatch.teamAPlayer2',
+    teamBPlayer1: 'recordMatch.teamBPlayer1', teamBPlayer2: 'recordMatch.teamBPlayer2'
   };
   readonly players = signal<Player[]>([]);
   readonly form = this.fb.nonNullable.group({
@@ -187,20 +190,20 @@ export class RecordMatchComponent {
 
   async ngOnInit(): Promise<void> {
     try { this.players.set(await this.playerService.listActive()); }
-    catch { this.snackBar.open('Players could not be loaded.', 'Close', { duration: 4000 }); }
+    catch { this.snackBar.open(this.i18n.t('recordMatch.playersLoadError'), this.i18n.t('common.close'), { duration: 4000 }); }
   }
 
   nameOf(playerId: string): string {
-    return this.players().find(p => p.id === playerId)?.displayName ?? 'Unknown player';
+    return this.players().find(p => p.id === playerId)?.displayName ?? this.i18n.t('common.unknownPlayer');
   }
 
   preview(): void {
     if (this.form.invalid) return;
     const value = this.form.getRawValue();
     const ids = [value.teamAPlayer1, value.teamAPlayer2, value.teamBPlayer1, value.teamBPlayer2];
-    if (new Set(ids).size !== 4) { this.snackBar.open('Select four distinct players.', 'Close', { duration: 3000 }); return; }
+    if (new Set(ids).size !== 4) { this.snackBar.open(this.i18n.t('recordMatch.selectFourDistinct'), this.i18n.t('common.close'), { duration: 3000 }); return; }
     if ((value.scoreA === null) !== (value.scoreB === null) || (value.scoreA !== null && (value.scoreA < 0 || value.scoreB! < 0))) {
-      this.snackBar.open('Enter both scores as non-negative numbers, or leave both blank.', 'Close', { duration: 3000 });
+      this.snackBar.open(this.i18n.t('recordMatch.scoreValidation'), this.i18n.t('common.close'), { duration: 3000 });
       return;
     }
     const byId = (id: string) => this.players().find(p => p.id === id)!;
@@ -237,7 +240,7 @@ export class RecordMatchComponent {
       this.result.set(recorded);
       this.projection.set(null);
     } catch (error) {
-      this.snackBar.open(error instanceof Error ? error.message : 'Could not record match.', 'Close', { duration: 4000 });
+      this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('recordMatch.recordError'), this.i18n.t('common.close'), { duration: 4000 });
     } finally {
       this.saving.set(false);
     }

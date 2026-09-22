@@ -39,11 +39,11 @@ export class I18nService {
   }
 
   /** Translate a key, interpolating any `{name}` placeholders from `params`. */
-  t(key: TranslationKey, params?: Record<string, string | number>): string {
+  t(key: TranslationKey, params?: Record<string, string | number | null | undefined>): string {
     const template = DICTIONARIES[this.locale()][key] ?? DICTIONARIES[DEFAULT_LOCALE][key] ?? key;
     if (!params) return template;
     return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-      params[name] !== undefined ? String(params[name]) : match
+      params[name] !== undefined && params[name] !== null ? String(params[name]) : match
     );
   }
 
@@ -53,7 +53,7 @@ export class I18nService {
    * to both English and European Portuguese for every plural used in this
    * app). `count` is automatically available to the template as `{count}`.
    */
-  tCount(count: number, keyBase: string, params?: Record<string, string | number>): string {
+  tCount(count: number, keyBase: string, params?: Record<string, string | number | null | undefined>): string {
     const suffix = count === 1 ? 'one' : 'other';
     return this.t(`${keyBase}.${suffix}` as TranslationKey, { count, ...params });
   }

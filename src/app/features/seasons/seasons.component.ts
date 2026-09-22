@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Season } from '../../core/models/season';
 import { SeasonService } from '../../core/services/season.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-seasons',
@@ -20,13 +21,9 @@ import { SeasonService } from '../../core/services/season.service';
   ],
   template: `
     <section class="heading">
-      <p class="tf-eyebrow">RANKED SEASONS</p>
-      <h1>Seasons</h1>
-      <p>
-        Like Valorant's Acts, a new season softly compresses every active player's Elo
-        toward the group average instead of wiping it &mdash; lifetime peak Elo, wins/losses
-        and match history are untouched, but the ladder gets a fresh, closer race.
-      </p>
+      <p class="tf-eyebrow">{{ i18n.t('seasons.eyebrow') }}</p>
+      <h1>{{ i18n.t('seasons.title') }}</h1>
+      <p>{{ i18n.t('seasons.subtitle') }}</p>
     </section>
 
     @if (error) { <p class="tf-error">{{ error }}</p> }
@@ -34,9 +31,9 @@ import { SeasonService } from '../../core/services/season.service';
     @if (activeSeason(); as active) {
       <mat-card class="active-card">
         <mat-card-content>
-          <mat-chip-set><mat-chip>ACTIVE</mat-chip></mat-chip-set>
-          <h2>Season {{ active.seasonNumber }} &mdash; {{ active.name }}</h2>
-          <p class="tf-empty">Started {{ active.startedAt | date:'longDate' }} &middot; compression {{ active.compressionFactor * 100 | number:'1.0-0' }}%</p>
+          <mat-chip-set><mat-chip>{{ i18n.t('seasons.active') }}</mat-chip></mat-chip-set>
+          <h2>{{ i18n.t('seasons.seasonHeading', { number: active.seasonNumber, name: active.name }) }}</h2>
+          <p class="tf-empty">{{ i18n.t('seasons.startedCompression', { date: (active.startedAt | date:'longDate':undefined:i18n.locale()), percent: (active.compressionFactor * 100 | number:'1.0-0') }) }}</p>
         </mat-card-content>
       </mat-card>
     }
@@ -44,50 +41,47 @@ import { SeasonService } from '../../core/services/season.service';
     @if (!starting()) {
       <button mat-stroked-button (click)="starting.set(true)">
         <mat-icon aria-hidden="true">military_tech</mat-icon>
-        Start a new season
+        {{ i18n.t('seasons.startNewSeason') }}
       </button>
     } @else {
       <mat-card class="start-card">
         <mat-card-header>
-          <mat-card-title>Start a new season</mat-card-title>
-          <mat-card-subtitle>
-            This immediately compresses every active player's Elo toward the group average and
-            clears every Demotion Shield. It cannot be undone from the app.
-          </mat-card-subtitle>
+          <mat-card-title>{{ i18n.t('seasons.startNewSeason') }}</mat-card-title>
+          <mat-card-subtitle>{{ i18n.t('seasons.startSubtitle') }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <mat-form-field appearance="outline" class="full">
-            <mat-label>Season name</mat-label>
-            <input matInput [(ngModel)]="name" placeholder="e.g. Season 2 — Winter" />
+            <mat-label>{{ i18n.t('seasons.nameLabel') }}</mat-label>
+            <input matInput [(ngModel)]="name" [placeholder]="i18n.t('seasons.namePlaceholder')" />
           </mat-form-field>
           <mat-form-field appearance="outline" class="full">
-            <mat-label>Compression (%)</mat-label>
+            <mat-label>{{ i18n.t('seasons.compressionLabel') }}</mat-label>
             <input matInput type="number" min="0" max="100" [(ngModel)]="compressionPercent" />
             <span matTextSuffix>%</span>
           </mat-form-field>
-          <p class="hint">0% keeps everyone's Elo exactly as-is; 100% resets everyone to the group average. 50% is a typical soft reset.</p>
+          <p class="hint">{{ i18n.t('seasons.compressionHint') }}</p>
           <mat-form-field appearance="outline" class="full">
-            <mat-label>Type the season name to confirm</mat-label>
+            <mat-label>{{ i18n.t('seasons.confirmNameLabel') }}</mat-label>
             <input matInput [(ngModel)]="confirmName" />
           </mat-form-field>
         </mat-card-content>
         <mat-card-actions align="end">
-          <button mat-button (click)="starting.set(false)">Cancel</button>
+          <button mat-button (click)="starting.set(false)">{{ i18n.t('common.cancel') }}</button>
           <button mat-flat-button color="primary" [disabled]="!canConfirm() || saving()" (click)="startSeason()">
-            {{ saving() ? 'Starting…' : 'Start season' }}
+            {{ saving() ? i18n.t('seasons.starting') : i18n.t('seasons.startSeason') }}
           </button>
         </mat-card-actions>
       </mat-card>
     }
 
     <section class="history">
-      <h2>Season history</h2>
-      @if (!pastSeasons().length) { <p class="tf-empty">No completed seasons yet.</p> }
+      <h2>{{ i18n.t('seasons.historyTitle') }}</h2>
+      @if (!pastSeasons().length) { <p class="tf-empty">{{ i18n.t('seasons.noHistory') }}</p> }
       @for (season of pastSeasons(); track season.id) {
         <mat-card class="history-row">
           <mat-card-content>
-            <strong>Season {{ season.seasonNumber }} &mdash; {{ season.name }}</strong>
-            <span class="tf-empty">{{ season.startedAt | date:'mediumDate' }} &ndash; {{ season.endedAt ? (season.endedAt | date:'mediumDate') : 'present' }}</span>
+            <strong>{{ i18n.t('seasons.seasonHeading', { number: season.seasonNumber, name: season.name }) }}</strong>
+            <span class="tf-empty">{{ season.startedAt | date:'mediumDate':undefined:i18n.locale() }} &ndash; {{ season.endedAt ? (season.endedAt | date:'mediumDate':undefined:i18n.locale()) : i18n.t('seasons.present') }}</span>
           </mat-card-content>
         </mat-card>
       }
@@ -109,6 +103,7 @@ import { SeasonService } from '../../core/services/season.service';
 export class SeasonsComponent {
   private readonly seasonService = inject(SeasonService);
   private readonly snackBar = inject(MatSnackBar);
+  protected readonly i18n = inject(I18nService);
 
   readonly seasons = signal<Season[]>([]);
   readonly starting = signal(false);
@@ -128,7 +123,7 @@ export class SeasonsComponent {
 
   async refresh(): Promise<void> {
     try { this.seasons.set(await this.seasonService.list()); }
-    catch { this.error = 'Seasons could not be loaded. Check the Supabase configuration.'; }
+    catch { this.error = this.i18n.t('seasons.loadError'); }
   }
 
   canConfirm(): boolean {
@@ -140,14 +135,18 @@ export class SeasonsComponent {
     this.saving.set(true);
     try {
       const result = await this.seasonService.start(this.name.trim(), Math.max(0, Math.min(100, this.compressionPercent)) / 100);
-      this.snackBar.open(`Season ${result.seasonNumber} — ${result.name} started (${result.playersCompressed} players compressed).`, 'Close', { duration: 5000 });
+      this.snackBar.open(
+        this.i18n.t('seasons.startedToast', { number: result.seasonNumber, name: result.name, count: result.playersCompressed }),
+        this.i18n.t('common.close'),
+        { duration: 5000 }
+      );
       this.starting.set(false);
       this.name = '';
       this.confirmName = '';
       this.compressionPercent = 50;
       await this.refresh();
     } catch (error) {
-      this.snackBar.open(error instanceof Error ? error.message : 'Could not start the season.', 'Close', { duration: 4000 });
+      this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('seasons.startError'), this.i18n.t('common.close'), { duration: 4000 });
     } finally {
       this.saving.set(false);
     }

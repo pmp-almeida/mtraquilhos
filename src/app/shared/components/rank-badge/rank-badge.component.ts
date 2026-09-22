@@ -1,6 +1,7 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { RankState } from '../../../core/models/rank-state';
 import { PLACEMENT_MATCHES_REQUIRED, RANK_COLORS } from '../../../rank/rank.constants';
+import { I18nService } from '../../../core/i18n/i18n.service';
 
 /**
  * Shared rank/tier badge used across the leaderboard, players list, player
@@ -16,7 +17,7 @@ import { PLACEMENT_MATCHES_REQUIRED, RANK_COLORS } from '../../../rank/rank.cons
       <span class="dot" aria-hidden="true"></span>
       <span class="label">{{ label() }}</span>
       @if (showRr() && rank().rr !== null) {
-        <span class="rr">{{ rank().rr }} RR</span>
+        <span class="rr">{{ rank().rr }} {{ i18n.t('common.rr') }}</span>
       }
     </span>
   `,
@@ -40,6 +41,8 @@ import { PLACEMENT_MATCHES_REQUIRED, RANK_COLORS } from '../../../rank/rank.cons
   `]
 })
 export class RankBadgeComponent {
+  protected readonly i18n = inject(I18nService);
+
   readonly rank = input.required<RankState>();
   readonly placementMatches = input<number | null>(null);
   readonly showRr = input(true);
@@ -49,7 +52,9 @@ export class RankBadgeComponent {
     const state = this.rank();
     if (state.tier === 'Unranked') {
       const played = this.placementMatches();
-      return played !== null ? `Unranked · ${played}/${PLACEMENT_MATCHES_REQUIRED}` : 'Unranked';
+      return played !== null
+        ? this.i18n.t('common.unrankedProgress', { played, total: PLACEMENT_MATCHES_REQUIRED })
+        : this.i18n.t('leaderboard.unranked');
     }
     return state.division ? `${state.tier} ${state.division}` : state.tier;
   });

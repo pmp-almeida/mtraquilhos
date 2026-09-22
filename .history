@@ -597,3 +597,68 @@ real checkout -- see the section-55 entry above) -- confirms the
 inline template's bindings all type-check under strictTemplates, which
 `tsc --noEmit` alone does not check. New page lands as its own 19.5 kB
 lazy chunk; initial bundle unaffected. Spec addendum section 57.
+
+## 2026-09-22 — Feature: full en-GB / pt-PT translation with instant runtime switching
+
+Added a custom, signal-based i18n system and wired every screen in the app
+through it -- app shell/toolbar, passphrase gate, dashboard, leaderboard,
+match history, record match, live match, players, player profile, random
+teams, seasons, how-it-works, and the shared rank badge. The passphrase
+gate carries its own language switcher so a language can be picked before
+unlocking.
+
+Architecture (deliberately not @angular/localize, which needs a rebuild
+per locale and can't switch at runtime):
+- `I18nService` holds a single `signal<Locale>` and a `t(key, params?)` /
+  `tCount(count, keyBase, params?)` method. Templates call these directly
+  (no pipe). A signal read executed synchronously during template
+  rendering is tracked as a dependency of that template regardless of how
+  many function calls it passes through, so every template that calls
+  `i18n.t(...)` re-renders instantly the moment the locale signal changes
+  -- no reload, no zone workaround, works whether the app is zone-based or
+  zoneless.
+- `EN_GB` is a canonical `as const` dictionary; `type TranslationKey =
+  keyof typeof EN_GB`; `PT_PT: Record<TranslationKey, string>` fails to
+  compile if a key is missing or renamed on either side. Same
+  single-source-of-truth discipline as rank.constants.ts, applied to catch
+  translation drift at compile time instead of at runtime in front of
+  someone using the pt-PT UI.
+- Pluralization: a plain `.one` / `.other` suffix convention via
+  `tCount()`, since English and European Portuguese share the same
+  singular/plural split for every plural used here.
+- Locale detection order: saved choice in localStorage
+  (`tf-locale-v1`) -> browser `navigator.languages` (first `pt*` or `en*`
+  prefix match) -> en-GB default. Every locale change persists to
+  localStorage and updates `<html lang>`.
+- Dates go through Angular's `DatePipe` with the locale passed explicitly
+  as its 4th argument (`| date:'medium':undefined:i18n.locale()`), since
+  `LOCALE_ID` is a static injection token and can't change at runtime;
+  `registerLocaleData()` is called for both `en-GB` and `pt-PT` in
+  `main.ts`.
+
+Explicit scope decisions (not oversights):
+- Rank tier/division names (Iron, Bronze, Lixo, Champion, I/II/III,
+  "Unranked") are NOT translated -- fixed game terminology stored as
+  literal values in `players.visible_rank`, same precedent as "Lixo"
+  already being kept as-is in the English UI.
+- Server-thrown Postgres `raise exception` text is NOT translated -- only
+  app-authored copy and fallback messages go through `t()`.
+- The browser tab title (`title:` on each route) stays static, not
+  reactively translated -- would need a custom `TitleStrategy`.
+- The app name ("Table Football Ranked") stays fixed as a brand name.
+
+Also fixed a pre-existing bug surfaced while retrofitting the Players
+screen: its subtitle hard-coded "...complete five placements", left over
+from before this session's placement-matches-10 migration. Now reads
+`{elo}`/`{count}` from `STARTING_ELO`/`PLACEMENT_MATCHES_REQUIRED` like
+every other number on the page, so it can't drift again.
+
+Verified with `tsc -p tsconfig.app.json --noEmit` plus a full `ng build`
+in a scratch Linux copy of the project (this environment can't run
+`ng build` directly against the real checkout -- see the section-55
+entry above). The first `ng build --configuration production` pass caught
+two real bugs `tsc` alone missed: DecimalPipe/DatePipe return
+`string | null`, which didn't fit `I18nService.t()`'s `params` type (widened
+to accept `null | undefined`), and a `private` field on `RankBadgeComponent`
+read from its own template under strict template type-checking (changed to
+`protected`). Spec addendum section 58.

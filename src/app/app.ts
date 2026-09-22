@@ -7,6 +7,9 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AccessGateService } from './core/services/access-gate.service';
 import { PassphraseGateComponent } from './shared/components/passphrase-gate/passphrase-gate.component';
+import { I18nService } from './core/i18n/i18n.service';
+import { TranslationKey } from './core/i18n/en-gb';
+import { LanguageSwitcherComponent } from './shared/components/language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-root',
@@ -14,20 +17,21 @@ import { PassphraseGateComponent } from './shared/components/passphrase-gate/pas
   imports: [
     RouterLink, RouterLinkActive, RouterOutlet,
     MatButtonModule, MatIconModule, MatMenuModule, MatToolbarModule, MatTooltipModule,
-    PassphraseGateComponent
+    PassphraseGateComponent, LanguageSwitcherComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App {
   protected readonly gate = inject(AccessGateService);
+  protected readonly i18n = inject(I18nService);
 
-  protected readonly navLinks = [
-    { path: '/leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
-    { path: '/matches', label: 'Matches', icon: 'history' },
-    { path: '/matches/record', label: 'Record match', icon: 'add_circle' },
-    { path: '/players', label: 'Players', icon: 'group' },
-    { path: '/teams', label: 'Generate teams', icon: 'shuffle' },
-    { path: '/seasons', label: 'Seasons', icon: 'military_tech' }
+  protected readonly navLinks: { path: string; labelKey: TranslationKey; icon: string }[] = [
+    { path: '/leaderboard', labelKey: 'nav.leaderboard', icon: 'leaderboard' },
+    { path: '/matches', labelKey: 'nav.matches', icon: 'history' },
+    { path: '/matches/record', labelKey: 'nav.recordMatch', icon: 'add_circle' },
+    { path: '/players', labelKey: 'nav.players', icon: 'group' },
+    { path: '/teams', labelKey: 'nav.teams', icon: 'shuffle' },
+    { path: '/seasons', labelKey: 'nav.seasons', icon: 'military_tech' }
   ];
 }

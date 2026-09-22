@@ -11,6 +11,7 @@ import { SeasonService } from '../../core/services/season.service';
 import { Season } from '../../core/models/season';
 import { MatchSummary } from '../../core/models/match';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -18,43 +19,43 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
   imports: [DatePipe, MatButtonModule, MatCardModule, MatIconModule, RouterLink, RankBadgeComponent],
   template: `
     <section class="hero">
-      @if (activeSeason()) {
-        <p class="tf-eyebrow">SEASON {{ activeSeason()!.seasonNumber }} · {{ activeSeason()!.name }}</p>
+      @if (activeSeason(); as season) {
+        <p class="tf-eyebrow">{{ i18n.t('dashboard.seasonEyebrow', { number: season.seasonNumber, name: season.name }) }}</p>
       } @else {
-        <p class="tf-eyebrow">COMPETITIVE TABLE FOOTBALL</p>
+        <p class="tf-eyebrow">{{ i18n.t('dashboard.eyebrow') }}</p>
       }
-      <h1>Play. Rank up. Repeat.</h1>
-      <p class="subtitle">Track Elo, ranks, placements, and every 2v2 match &mdash; Valorant-style tiers, RR, and Demotion Shields for a friendly office ladder.</p>
+      <h1>{{ i18n.t('dashboard.title') }}</h1>
+      <p class="subtitle">{{ i18n.t('dashboard.subtitle') }}</p>
       <div class="hero-actions">
-        <a mat-flat-button color="primary" routerLink="/live"><mat-icon>bolt</mat-icon>Live Match</a>
-        <a mat-stroked-button routerLink="/matches/record"><mat-icon>add_circle</mat-icon>Record a match</a>
-        <a mat-stroked-button routerLink="/teams"><mat-icon>shuffle</mat-icon>Generate teams</a>
-        <a mat-button routerLink="/players"><mat-icon>group</mat-icon>Manage players</a>
+        <a mat-flat-button color="primary" routerLink="/live"><mat-icon>bolt</mat-icon>{{ i18n.t('dashboard.liveMatch') }}</a>
+        <a mat-stroked-button routerLink="/matches/record"><mat-icon>add_circle</mat-icon>{{ i18n.t('dashboard.recordMatch') }}</a>
+        <a mat-stroked-button routerLink="/teams"><mat-icon>shuffle</mat-icon>{{ i18n.t('dashboard.generateTeams') }}</a>
+        <a mat-button routerLink="/players"><mat-icon>group</mat-icon>{{ i18n.t('dashboard.managePlayers') }}</a>
       </div>
     </section>
 
     @if (error) { <p class="tf-error">{{ error }}</p> }
 
     <section class="cards">
-      <mat-card><mat-card-header><mat-card-title>Players</mat-card-title></mat-card-header><mat-card-content><strong>{{ players().length }}</strong> active players</mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>Matches</mat-card-title></mat-card-header><mat-card-content><strong>{{ matchCount() }}</strong> recorded matches</mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>Average Elo</mat-card-title></mat-card-header><mat-card-content><strong>{{ averageElo() }}</strong> across active players</mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>Highest Elo</mat-card-title></mat-card-header><mat-card-content>
-        @if (topByElo(); as p) { <strong>{{ p.elo }}</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">&mdash;</span> }
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardPlayers') }}</mat-card-title></mat-card-header><mat-card-content><strong>{{ players().length }}</strong> {{ i18n.tCount(players().length, 'dashboard.cardPlayers') }}</mat-card-content></mat-card>
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardMatches') }}</mat-card-title></mat-card-header><mat-card-content><strong>{{ matchCount() }}</strong> {{ i18n.tCount(matchCount(), 'dashboard.cardMatches') }}</mat-card-content></mat-card>
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardAverageElo') }}</mat-card-title></mat-card-header><mat-card-content><strong>{{ averageElo() }}</strong> {{ i18n.t('dashboard.cardAverageEloSub') }}</mat-card-content></mat-card>
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardHighestElo') }}</mat-card-title></mat-card-header><mat-card-content>
+        @if (topByElo(); as p) { <strong>{{ p.elo }}</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">{{ i18n.t('common.dash') }}</span> }
       </mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>Most Wins</mat-card-title></mat-card-header><mat-card-content>
-        @if (topByWins(); as p) { <strong>{{ p.wins }}</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">&mdash;</span> }
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardMostWins') }}</mat-card-title></mat-card-header><mat-card-content>
+        @if (topByWins(); as p) { <strong>{{ p.wins }}</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">{{ i18n.t('common.dash') }}</span> }
       </mat-card-content></mat-card>
-      <mat-card><mat-card-header><mat-card-title>Highest Win Rate</mat-card-title></mat-card-header><mat-card-content>
-        @if (topByWinRate(); as p) { <strong>{{ winRateOf(p) }}%</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">&mdash;</span> }
+      <mat-card><mat-card-header><mat-card-title>{{ i18n.t('dashboard.cardHighestWinRate') }}</mat-card-title></mat-card-header><mat-card-content>
+        @if (topByWinRate(); as p) { <strong>{{ winRateOf(p) }}%</strong> &mdash; {{ p.displayName }} } @else { <span class="tf-empty">{{ i18n.t('common.dash') }}</span> }
       </mat-card-content></mat-card>
     </section>
 
     <section class="split">
       <mat-card class="preview">
-        <mat-card-header><mat-card-title>Leaderboard</mat-card-title><a mat-button routerLink="/leaderboard">View all</a></mat-card-header>
+        <mat-card-header><mat-card-title>{{ i18n.t('dashboard.leaderboardTitle') }}</mat-card-title><a mat-button routerLink="/leaderboard">{{ i18n.t('dashboard.viewAll') }}</a></mat-card-header>
         <mat-card-content>
-          @if (!players().length) { <p class="tf-empty">No active players yet.</p> }
+          @if (!players().length) { <p class="tf-empty">{{ i18n.t('dashboard.noActivePlayers') }}</p> }
           @for (player of players().slice(0, 5); track player.id; let i = $index) {
             <div class="row">
               <span class="position">{{ i + 1 }}</span>
@@ -67,19 +68,19 @@ import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badg
       </mat-card>
 
       <mat-card class="preview">
-        <mat-card-header><mat-card-title>Recent matches</mat-card-title><a mat-button routerLink="/matches">View all</a></mat-card-header>
+        <mat-card-header><mat-card-title>{{ i18n.t('dashboard.recentMatchesTitle') }}</mat-card-title><a mat-button routerLink="/matches">{{ i18n.t('dashboard.viewAll') }}</a></mat-card-header>
         <mat-card-content>
-          @if (!matches().length) { <p class="tf-empty">No matches recorded yet.</p> }
+          @if (!matches().length) { <p class="tf-empty">{{ i18n.t('dashboard.noMatches') }}</p> }
           @for (match of matches().slice(0, 5); track match.id) {
             <div class="match-row">
               <div class="teams">
                 <span class="team" [class.winner]="match.winner === 'A'">{{ teamNames(match.teamAPlayerIds) }}</span>
-                <span class="vs">vs</span>
+                <span class="vs">{{ i18n.t('common.vs') }}</span>
                 <span class="team" [class.winner]="match.winner === 'B'">{{ teamNames(match.teamBPlayerIds) }}</span>
               </div>
               <div class="meta">
-                <span class="date">{{ match.playedAt | date:'short' }}</span>
-                <span class="score">{{ match.scoreA === null ? '&mdash;' : match.scoreA + ' – ' + match.scoreB }}</span>
+                <span class="date">{{ match.playedAt | date:'short':undefined:i18n.locale() }}</span>
+                <span class="score">{{ match.scoreA === null ? i18n.t('common.dash') : match.scoreA + ' – ' + match.scoreB }}</span>
               </div>
             </div>
           }
@@ -116,6 +117,7 @@ export class DashboardComponent {
   private readonly playerService = inject(PlayerService);
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
+  protected readonly i18n = inject(I18nService);
 
   readonly players = signal<Player[]>([]);
   readonly matches = signal<MatchSummary[]>([]);
@@ -157,11 +159,11 @@ export class DashboardComponent {
       this.activeSeason.set(activeSeason);
       this.playerNames = playerNames;
     } catch {
-      this.error = 'Dashboard data could not be loaded. Check the Supabase configuration.';
+      this.error = this.i18n.t('dashboard.loadError');
     }
   }
 
   teamNames(ids: [string, string]): string {
-    return ids.map(id => this.playerNames[id] ?? 'Unknown').join(' & ');
+    return ids.map(id => this.playerNames[id] ?? this.i18n.t('common.unknownPlayer')).join(' & ');
   }
 }

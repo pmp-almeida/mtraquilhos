@@ -37,6 +37,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   'common.elo': 'Elo',
   'common.rr': 'RR',
   'common.dash': '—',
+  'common.unrankedProgress': 'Não classificado · {played}/{total}',
   'common.loadError': 'Não foi possível ligar. Verifique a configuração do Supabase.',
 
   // ---- Passphrase gate ----
