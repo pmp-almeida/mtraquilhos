@@ -7,6 +7,40 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 4px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.desktop-nav {
+  display: flex;
+  gap: 2px;
+}
+
+.desktop-nav a,
+.mat-mdc-menu-item.active {
+  background: color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
+}
+
+.desktop-nav a mat-icon,
+.mat-mdc-menu-item mat-icon {
+  margin-right: 6px;
+}
+
+.record-cta-label {
+  margin-left: 4px;
+}
+
+.mobile-menu-trigger {
+  display: none;
 }
 
 .toolbar-spacer {
@@ -17,4 +51,22 @@
   max-width: 1440px;
   margin: 0 auto;
   padding: 24px;
+}
+
+@media (max-width: 880px) {
+  .desktop-nav {
+    display: none;
+  }
+
+  .mobile-menu-trigger {
+    display: inline-flex;
+  }
+
+  .record-cta-label {
+    display: none;
+  }
+
+  .app-content {
+    padding: 16px;
+  }
 }
