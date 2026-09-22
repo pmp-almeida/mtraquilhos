@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { Player } from '../models/player';
-import { STARTING_ELO } from '../../rank/rank.constants';
 import { SupabaseService } from './supabase.service';
 import { RankDivision, RankTier } from '../models/rank-state';
 
@@ -36,7 +35,7 @@ export class PlayerService {
     const name = displayName.trim();
     if (!name) throw new Error('Player name is required');
     if (!this.supabase.client) throw new Error('Supabase is not configured');
-    const { data, error } = await this.supabase.client.from('players').insert({ display_name: name, starting_elo: STARTING_ELO }).select().single();
+    const { data, error } = await this.supabase.client.from('players').insert({ display_name: name }).select().single();
     if (error) throw error;
     return this.mapPlayer(data);
   }
