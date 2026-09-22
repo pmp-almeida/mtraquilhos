@@ -145,15 +145,17 @@ begin
       v_after := rank_for_elo(v_player.current_elo); v_after_rank := v_after->>'label'; v_after_rr := (v_after->>'rr')::integer;
       v_after_shield := v_player.demotion_shield_active; v_after_pending := v_player.demotion_pending;
       if v_player.demotion_pending then
-        if ((v_player.id = p_team_a_player_1 or v_player.id = p_team_a_player_2) = (p_winner = 'A')) then v_after_shield := false; v_after_pending := false;
-        else v_after_shield := false; v_after_pending := false; end if;
+        v_after_shield := false; v_after_pending := false;
+        if not ((v_player.id = p_team_a_player_1 or v_player.id = p_team_a_player_2) = (p_winner = 'A')) then
+          v_after_rank := v_after->>'label'; v_after_rr := (v_after->>'rr')::integer;
+        end if;
       elsif v_after_rank <> v_player.visible_rank and v_player.rr = 0 and v_after_rr is not null then
         v_after_shield := true; v_after_pending := true; v_after_rank := v_player.visible_rank; v_after_rr := 0;
       end if;
       update players set visible_rank = v_after_rank, rr = v_after_rr, demotion_shield_active = v_after_shield, demotion_pending = v_after_pending where id = v_player.id;
     end if;
     insert into rating_events (match_id, player_id, elo_before, elo_after, elo_delta, rank_before, rank_after, rr_before, rr_after, placement_matches_before, placement_matches_after, demotion_shield_before, demotion_shield_after)
-      values (v_match_id, v_player.id, v_player.current_elo - case when v_player.id = p_team_a_player_1 or v_player.id = p_team_a_player_2 then case when p_winner = 'A' then v_delta else -v_delta end else case when p_winner = 'B' then v_delta else -v_delta end end, v_player.current_elo, v_player.current_elo - (v_player.current_elo - case when v_player.id = p_team_a_player_1 or v_player.id = p_team_a_player_2 then case when p_winner = 'A' then v_delta else -v_delta end else case when p_winner = 'B' then v_delta else -v_delta end end), case when p_winner = 'A' then v_delta else -v_delta end, v_before_rank, v_player.visible_rank, v_before_rr, v_player.rr, greatest(0, v_player.placement_matches_played - 1), v_player.placement_matches_played, v_before_shield, v_player.demotion_shield_active);
+      values (v_match_id, v_player.id, v_player.current_elo - case when v_player.id = p_team_a_player_1 or v_player.id = p_team_a_player_2 then case when p_winner = 'A' then v_delta else -v_delta end else case when p_winner = 'B' then v_delta else -v_delta end end, v_player.current_elo, case when v_player.id = p_team_a_player_1 or v_player.id = p_team_a_player_2 then case when p_winner = 'A' then v_delta else -v_delta end else case when p_winner = 'B' then v_delta else -v_delta end end, v_before_rank, v_player.visible_rank, v_before_rr, v_player.rr, greatest(0, v_player.placement_matches_played - 1), v_player.placement_matches_played, v_before_shield, v_player.demotion_shield_active);
   end loop;
   return jsonb_build_object('matchId', v_match_id, 'expectedProbability', v_ea, 'teamAElo', v_a_elo, 'teamBElo', v_b_elo, 'teamDelta', v_delta, 'players', (select jsonb_agg(to_jsonb(e)) from rating_events e where e.match_id = v_match_id));
 end;

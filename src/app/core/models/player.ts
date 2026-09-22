@@ -9,6 +9,7 @@ export interface Player {
   placementComplete: boolean;
   rank: RankState;
   demotionShield: boolean;
+  demotionPending: boolean;
   wins: number;
   losses: number;
   isActive: boolean;
