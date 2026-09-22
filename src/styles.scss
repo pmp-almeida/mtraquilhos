@@ -7,39 +7,63 @@
 
 html {
   height: 100%;
+  // A dark, competitive-game palette: a saturated red primary (the
+  // "Record match" call to action and active-nav accent) against a near-black
+  // surface, echoing the dark ranked-menu aesthetic of games like Valorant
+  // rather than a generic light admin panel. Density -1 keeps rows compact
+  // so a leaderboard or match history reads like a scoreboard, not a form.
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        theme-type: dark,
+        primary: mat.$red-palette,
+        tertiary: mat.$cyan-palette,
       ),
       typography: Roboto,
-      density: 0,
+      density: -1,
     )
   );
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
+  color-scheme: dark;
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
   margin: 0;
   height: 100%;
 }
+
 * {
   box-sizing: border-box;
 }
 
 body {
   min-width: 320px;
+}
+
+// Small shared utility classes used across feature components so every
+// screen states loading/empty/error conditions the same way.
+.tf-eyebrow {
+  color: var(--mat-sys-primary);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.tf-error {
+  color: var(--mat-sys-error);
+}
+
+.tf-empty {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.tf-win {
+  color: #3fbf6f;
+}
+
+.tf-loss {
+  color: #e6533c;
 }

@@ -8,7 +8,13 @@ export interface RankThreshold {
 
 export const STARTING_ELO = 520;
 export const K_FACTOR = 32;
-export const PLACEMENT_MATCHES_REQUIRED = 5;
+export const PLACEMENT_MATCHES_REQUIRED = 10;
+
+/** Elo at and above which a player is Champion (no division, no RR). */
+export const CHAMPION_FLOOR = 1340;
+
+/** Width, in Elo points, of every normal (non-Lixo, non-Champion) division. */
+export const DIVISION_WIDTH = 40;
 
 export const RANK_THRESHOLDS: readonly RankThreshold[] = [
   { tier: 'Iron', division: 'I', floor: 500 }, { tier: 'Iron', division: 'II', floor: 540 }, { tier: 'Iron', division: 'III', floor: 580 },
@@ -19,3 +25,22 @@ export const RANK_THRESHOLDS: readonly RankThreshold[] = [
   { tier: 'Diamond', division: 'I', floor: 1100 }, { tier: 'Diamond', division: 'II', floor: 1140 }, { tier: 'Diamond', division: 'III', floor: 1180 },
   { tier: 'Emerald', division: 'I', floor: 1220 }, { tier: 'Emerald', division: 'II', floor: 1260 }, { tier: 'Emerald', division: 'III', floor: 1300 }
 ];
+
+/**
+ * Ordered rank colors, loosely modeled after Valorant's Iron -> Radiant
+ * ladder: cool, low-saturation tones at the bottom rising to warm, saturated
+ * tones at the top, with Champion given a distinct gold/red treatment as the
+ * single highest tier (Valorant's Radiant equivalent).
+ */
+export const RANK_COLORS: Record<RankTier | 'Unranked', string> = {
+  Unranked: '#7c8797',
+  Lixo: '#5b5f66',
+  Iron: '#8a8f98',
+  Bronze: '#a9713f',
+  Silver: '#9fb0c3',
+  Gold: '#d8b04a',
+  Platinum: '#4fb3a9',
+  Diamond: '#5b8def',
+  Emerald: '#3fbf6f',
+  Champion: '#e6533c'
+};

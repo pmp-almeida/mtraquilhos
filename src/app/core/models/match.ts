@@ -27,9 +27,22 @@ export interface PlayerMatchResult {
 
 export interface RecordMatchResult {
   matchId: string;
+  seasonId: string | null;
   expectedProbability: number;
   teamAElo: number;
   teamBElo: number;
   teamDelta: number;
   players: PlayerMatchResult[];
+}
+
+export interface MatchSummary {
+  id: string;
+  playedAt: string;
+  winner: 'A' | 'B';
+  scoreA: number | null;
+  scoreB: number | null;
+  seasonId: string | null;
+  teamAPlayerIds: [string, string];
+  teamBPlayerIds: [string, string];
+  playerIds: string[];
 }

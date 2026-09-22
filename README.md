@@ -13,6 +13,31 @@ application database and authoritative match processing. See
 `docs/no-auth-deployment.md` and `docs/git-and-supabase-setup.md` before
 sharing or deploying an instance.
 
+## Feature overview
+
+- Elo-based ranking (9 tiers, Iron-III divisions) with 5 placement matches per player.
+- A one-use **Demotion Shield** protects every rank from an immediate drop the moment
+  a player hits the floor of their current rank, Champion included -- see
+  `table-football-ranked-app-spec-v2.md` section 18-20 for the exact rules.
+- Optional **Seasons**: a Valorant-Act-style soft reset that compresses Elo toward the
+  group average instead of wiping it. Started from the Seasons page; see section 48.
+- A lightweight **shared-passphrase gate** (not authentication -- see section 49) that
+  can optionally sit in front of the app.
+- Random team generator, a full player profile (rank, streaks, teammate stats, season
+  history), and a record-match flow with a projected-outcome preview and a post-match
+  result summary.
+
+## Environment variables
+
+Set these as GitHub Actions secrets (see `docs/git-and-supabase-setup.md`) or in
+`src/environments/environment.ts` for local development:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `SUPABASE_URL` | Yes | Public Supabase project URL. |
+| `SUPABASE_ANON_KEY` | Yes | Public anon key. Never use the service-role key here. |
+| `ACCESS_PASSPHRASE` | No | Plaintext passphrase for the shared access gate. Only its SHA-256 hash is ever built into the app -- see `docs/no-auth-deployment.md`. Leave unset to disable the gate. |
+
 ## Development server
 
 To start a local development server, run:
@@ -21,7 +46,7 @@ To start a local development server, run:
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Once the server is running, open your browser and navigate to `http://localhost:4545/`. The application will automatically reload whenever you modify any of the source files.
 
 ## Code scaffolding
 
