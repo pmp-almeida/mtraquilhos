@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "env:local": "node scripts/generate-local-environment.js"
   },
   "private": true,
   "packageManager": "npm@10.9.2",

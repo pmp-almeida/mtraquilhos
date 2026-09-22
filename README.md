@@ -29,14 +29,36 @@ sharing or deploying an instance.
 
 ## Environment variables
 
-Set these as GitHub Actions secrets (see `docs/git-and-supabase-setup.md`) or in
-`src/environments/environment.ts` for local development:
-
 | Variable | Required | Purpose |
 |---|---|---|
 | `SUPABASE_URL` | Yes | Public Supabase project URL. |
-| `SUPABASE_ANON_KEY` | Yes | Public anon key. Never use the service-role key here. |
+| `SUPABASE_ANON_KEY` | Yes | Public anon/publishable key. Never use the service-role key here. |
 | `ACCESS_PASSPHRASE` | No | Plaintext passphrase for the shared access gate. Only its SHA-256 hash is ever built into the app -- see `docs/no-auth-deployment.md`. Leave unset to disable the gate. |
+
+**Production** (GitHub Pages): set these as GitHub Actions secrets in the
+repository's Settings -> Secrets and variables -> Actions (see
+`docs/git-and-supabase-setup.md`). The deploy workflow generates
+`src/environments/environment.production.ts` from them at build time, and
+`angular.json`'s production configuration swaps it in for
+`src/environments/environment.ts` via `fileReplacements`.
+
+**Local development** (`ng serve`): `src/environments/environment.ts` is
+committed to git with blank placeholders -- never put real values directly
+in that tracked file. Instead:
+
+1. Copy `.env.example` to `.env` (already git-ignored) and fill in your
+   values.
+2. Run `npm run env:local`. This reads `.env` and rewrites
+   `src/environments/environment.ts` locally, the same way the deploy
+   workflow does for the production file.
+3. Run `ng serve` as usual.
+
+`npm run env:local` overwrites your local copy of `environment.ts` with real
+values, so `git status` will show it as modified after you run it -- don't
+commit that. If you'd rather git stopped showing it as changed at all, run
+`git update-index --skip-worktree src/environments/environment.ts` once (undo
+with `--no-skip-worktree` if you ever need to pull in a real change to that
+file).
 
 ## Development server
 
