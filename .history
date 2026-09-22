@@ -198,3 +198,39 @@ sections 3, 13, 18, 20, 27, 29, and 35 so a reader lands on the addenda.
   regenerate button.
 - `ng test` was not confirmed green in this sandbox (see above) — please
   run it locally before merging `develop`.
+
+---
+
+## 2026-09-22 — Follow-up: 401 on player creation
+
+User reported a 401 when adding a new player and asked whether any request
+was accidentally behind authentication.
+
+**Verified not an auth issue:** `AccessGateService` (the passphrase gate)
+only controls what renders in the Angular shell (`@if (gate.required &&
+!gate.unlocked())` in `app.html`) and never touches `SupabaseService` or
+attaches headers to any request. All Supabase calls still go out with just
+the public anon key, exactly as before this session's changes.
+
+**Actual cause, found in `src/app/core/services/player.service.ts`:**
+`create()` sent `{ display_name, starting_elo }` in the insert payload, but
+`supabase/migrations/20260922140800_allow_public_player_creation.sql`
+grants `anon` **column-level** INSERT on `display_name` only (deliberately,
+so every rating field is forced through the column defaults). Postgres
+rejects the extra `starting_elo` column at the privilege level; PostgREST
+surfaces that specific permission failure as a 401, which reads like an
+auth problem but is really a column-grant mismatch. This predates this
+session — it was in the code before the `develop` branch existed — but
+wasn't caught when `player.service.ts` was rewritten earlier this session.
+
+**Fix (commit `779baf6`):** stop sending `starting_elo` from the client.
+The column already defaults to 520 and has `check (starting_elo = 520)`, so
+it can never be anything else anyway — dropping it from the insert avoids
+referencing a column `anon` has no grant on, and is also more consistent
+with spec section 45 (client never submits authoritative rating fields).
+
+Verified with `tsc --noEmit` (clean). If a 401 persists after pulling this
+fix, check: (1) that migration 3
+(`20260922140800_allow_public_player_creation.sql`) is actually applied to
+the live Supabase project, and (2) that `SUPABASE_URL`/`SUPABASE_ANON_KEY`
+in the running build match that project.
