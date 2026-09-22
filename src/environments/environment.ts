@@ -1,9 +1,10 @@
 export const environment = {
   production: false,
-  supabaseUrl: 'https://vhcxkacfxffzqgctxmng.supabase.co',
-  supabaseAnonKey: 'sb_publishable_YwSx-4cqAKYkMCU4A-eT8A_d_p6BYVD',
-  // Empty by default so local development is never gated. Set this to the
-  // SHA-256 hex digest of a chosen passphrase to test the access gate
-  // locally (see docs/no-auth-deployment.md for how to generate one).
+  // Blank on purpose -- this file is committed to git. Run `npm run
+  // env:local` to populate it from a git-ignored `.env` in the repo root
+  // (copy `.env.example` first) so `ng serve` can reach your Supabase
+  // project. See the "Environment variables" section in README.md.
+  supabaseUrl: '',
+  supabaseAnonKey: '',
   accessPassphraseHash: ''
 };
