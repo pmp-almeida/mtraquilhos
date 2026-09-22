@@ -1927,3 +1927,22 @@ The toolbar's primary call-to-action and the dashboard's primary hero button now
 ## Deferred: live visibility elsewhere
 
 A "Live now" indicator -- e.g. a dashboard banner showing an in-progress live match's running score before it's confirmed -- was discussed and deliberately **not** built in this pass. It would need either polling or realtime sync of the in-progress state (currently purely local to the scoreboard device), which is more than this pass's single-device model requires. Noted here as a future idea, not implemented.
+
+
+---
+
+# 55. Addendum — Fixed: Production Bundle Exceeded GitHub Pages Build Budget
+
+`ng build --configuration production` was failing outright with `[ERROR] bundle initial exceeded maximum budget` (1.05 MB against a 1 MB `maximumError` budget after Live Mode's addition -- Pedro had already hit a smaller 36.55 kB overage before that). This blocks the GitHub Pages deploy workflow entirely, since `.github/workflows/deploy-pages.yml` runs exactly this build and fails the job (and therefore the deploy) on the same error.
+
+## Root cause
+
+Every route in `app.routes.ts` used eager `component:` references, so every feature component (dashboard, leaderboard, matches, players, teams, seasons, live match, and all of Angular Material they pull in) was imported directly by the root route config and bundled into the single initial chunk -- there was no code-splitting at all. The app only ever renders one route at a time, so nearly all of that code was dead weight on every page load.
+
+## Fix
+
+`app.routes.ts` now uses `loadComponent: () => import(...).then(m => m.XComponent)` for every route instead of eager `component:` imports. This is a purely mechanical, behavior-preserving change -- Angular's router lazy-loads the matched route's component (and only that component's own imports) on navigation, code-splitting each feature into its own chunk. No routing behavior, guard, or resolver logic changed.
+
+Result: the initial bundle dropped from 1.05 MB (failing) to 621.82 kB raw / 152.58 kB gzipped -- comfortably under budget, with each feature now its own small lazy chunk (17-45 kB raw) fetched only when its route is visited. `angular.json`'s production `initial` budget was tightened from `500kB`/`1MB` (warning/error) to `650kB`/`900kB` to reflect the new baseline with headroom, rather than leaving stale numbers that no longer mean anything.
+
+This keeps the app on GitHub Pages' free static hosting exactly as originally specified (section 2, section 42) -- no server, no paid tier, no change to the deploy workflow's `cp index.html 404.html` SPA-fallback trick, which still works unchanged since routing itself (path structure, guards) is untouched.

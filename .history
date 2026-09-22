@@ -493,3 +493,43 @@ or for the upcoming GitHub Pages bundle-budget investigation.
 Spec doc: new addendum section 54 ("Live Mode"), covering the flow,
 persistence, navigation changes, and the deferred "Live now" indicator
 note above.
+
+## 2026-09-22 — Fixed: production bundle exceeded GitHub Pages build budget
+
+Pedro reported `ng build --configuration production` failing with
+"[ERROR] bundle initial exceeded maximum budget. Budget 1.00 MB was not
+met by 36.55 kB with a total of 1.04 MB." This blocks the GitHub Pages
+deploy workflow (which runs this exact build), so the app couldn't be
+deployed to Pages at all.
+
+Reproduced in a scratch copy of the project (this environment can't run
+`ng build` directly against the real checkout -- its `node_modules` has
+Windows esbuild binaries mounted into a Linux shell, so `ng build` fails
+on a platform mismatch unrelated to the app; copied package.json/
+package-lock.json/src/public/config into the cloud workspace and ran
+`npm ci` there instead, purely to get real bundle numbers). Confirmed:
+1.05 MB initial (now worse than Pedro's 1.04 MB report, since Live Mode
+added more code in the meantime) against the 1 MB error budget.
+
+Root cause: `app.routes.ts` used eager `component:` references for
+every route, so the router config imported every feature component
+directly and the whole app -- every screen, all of it -- landed in one
+initial chunk. There was no code-splitting.
+
+Fix: switched every route to `loadComponent: () => import(...).then(...)`
+instead of `component:`. Purely mechanical -- no routing/guard/resolver
+behavior changed, Angular's router now code-splits each feature into
+its own lazy chunk fetched only on navigation to it. Result: initial
+bundle 1.05 MB -> 621.82 kB raw (152.58 kB gzipped), each feature now a
+17-45 kB lazy chunk. `angular.json`'s production `initial` budget
+tightened from 500kB/1MB (warning/error) to 650kB/900kB to reflect the
+new baseline with headroom rather than leaving stale numbers.
+
+No change to the GitHub Pages deploy workflow itself -- still a static
+build, still the `cp index.html 404.html` SPA-fallback trick, still free
+hosting with no server, exactly as originally specified.
+
+Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean, both in
+the scratch copy and the real project) and a full production build in
+the scratch copy (succeeds, warning-only at the new 650kB line, no
+error). Spec addendum: section 55.
