@@ -1794,3 +1794,81 @@ Prioritize:
 12. Reliable GitHub Pages deployment.
 
 Do not simplify or alter the ranking rules without explicit instruction.
+
+---
+
+# 48. Addendum — Demotion Shield Applies to Every Rank (Clarification)
+
+Sections 18–20 describe the Demotion Shield in terms of "divisions," and section 20 originally left Champion's shield behavior open ("no Demotion Shield requirement unless explicitly added later"). This is now resolved:
+
+The Demotion Shield protects **every** rank a player can hold, with no exception:
+
+- Every normal division (Iron I through Emerald III) keeps the original rule: the shield arms when the player's RR reaches 0 (the floor of that division) and their next match would drop them into a lower rank.
+- **Iron I → Lixo is included.** A player at Iron I, 0 RR, whose Elo would drop below 500 gets the shield exactly like any other division-floor demotion. (The original reference implementation had a bug that excluded this specific case; it is fixed.)
+- **Champion is included.** Champion has no RR, so its "floor" is simply holding Champion at all: the first match that would push a Champion player's Elo below 1340 arms the shield instead of demoting them to Emerald III immediately.
+- Lixo still has no shield (there is no lower rank to protect against), and Unranked players still have no shield (they have no visible rank yet).
+
+The demotion-match resolution rule from section 19 is unchanged, but stated more precisely: winning the demotion match retains the *exact* protected rank/RR (or Champion, with no RR), even if the resulting Elo doesn't land back inside that rank's range by itself; losing demotes to whatever rank the resulting Elo now computes to.
+
+---
+
+# 49. Addendum — Seasons
+
+Seasons are implemented as an optional, admin-triggered **soft reset**, modeled on Valorant's Acts: instead of wiping ratings, a new season compresses every active player's Elo toward the group's current mean.
+
+## Behavior
+
+- At most one season is active at a time (`seasons.is_active`).
+- Starting a season (`start_season(name, compression_factor)` RPC):
+  1. Closes the current season, if any, snapshotting every player's final rank/RR/Elo for that season into `player_season_stats`.
+  2. Computes the mean Elo across active players.
+  3. For every active player: `new_elo = round(mean + (current_elo - mean) * (1 - compression_factor))`, clamped to a sane floor. `compression_factor` ranges from 0 (no change) to 1 (everyone resets to the mean); 0.5 is a typical soft reset.
+  4. Recomputes each ranked player's visible rank/RR from their new Elo using the normal thresholds. Unranked (in-placement) players are left as Unranked.
+  5. Clears every player's Demotion Shield state, so everyone starts the season with a fresh, unused shield.
+  6. Starts a fresh `player_season_stats` row per player: `starting_elo`, `current_elo`, and `peak_elo` all begin at the post-compression Elo, and `wins`/`losses`/`matches_played` reset to 0 for the season.
+- **Lifetime stats are untouched.** `players.peak_elo`, `players.wins`/`losses`, `rating_events`, and `matches` are never modified or deleted by a season reset — only `players.current_elo`, `visible_rank`, `rr`, and the two shield flags change. A season is a ladder refresh, not a data wipe.
+- Placement matches are **not** re-required at the start of a new season; only brand-new players (not yet `placement_complete`) go through placements, exactly as outside of a season.
+- Every match recorded while a season is active is tagged with that `season_id` (`matches.season_id`, nullable). Matches recorded with no active season — including every match recorded before this feature existed — have a null `season_id` and are treated as "pre-season" history.
+- The leaderboard can be viewed by the active season (ordered by `player_season_stats.current_elo`) or all-time (ordered by `players.current_elo`, as originally specified in section 27); section 27's all-time ordering is unchanged and remains the default when no season is active.
+- The Seasons page requires typing the season's name a second time before starting it, since the action is immediate and not reversible from the app.
+
+## Schema additions
+
+```text
+seasons
+  id, season_number, name, started_at, ended_at, is_active, compression_factor, created_at
+
+player_season_stats
+  id, season_id, player_id, starting_elo, current_elo, peak_elo,
+  final_rank, final_rr, wins, losses, matches_played, created_at, updated_at
+  unique (season_id, player_id)
+
+matches.season_id   -- nullable FK to seasons, added to the existing table
+```
+
+`start_season` is `SECURITY DEFINER`, granted to `anon`, consistent with this project's no-auth model (section 3): there is no account system to restrict it to, so it is guarded only by the UI's confirmation step and, if configured, the passphrase gate below.
+
+---
+
+# 50. Addendum — Application Access Gate (Passphrase Gate)
+
+This amends section 3 ("Authentication"). Section 3's rules are otherwise unchanged and still apply in full: there is still no login, no signup, no accounts, no Supabase Auth, and no `auth_user_id`. This addendum adds exactly one thing: an optional, lightweight, **shared** passphrase gate in front of the whole app.
+
+- One passphrase, shared by the entire group — not a per-user credential. There is no username, no account, and no concept of "who" unlocked the app.
+- Enforced entirely client-side: the build embeds the SHA-256 hash of the configured passphrase; the app hashes what the visitor types and compares hashes in the browser. The plaintext passphrase never appears in the repository, the build output, or over the network.
+- A successful unlock is cached in that browser's `localStorage`, keyed by the current hash, so rotating the passphrase invalidates every previous unlock everywhere.
+- It is explicitly **not** a security boundary: it does not gate the Supabase RPCs (`record_match`, `start_season`, player creation), which remain callable by anyone with the project's public anon key, exactly as before this addendum. Its only purpose is to stop the app from being stumbled into by someone who has the URL but not the passphrase.
+- It is entirely optional and off by default: if the `ACCESS_PASSPHRASE` secret is not configured at deploy time, the app opens directly with no gate, matching the original no-auth behavior described in section 3.
+
+---
+
+# 51. Addendum — Implementation Status Notes
+
+Recording where this pass closed gaps against the original spec, and one deliberate schema deviation:
+
+- **Closed:** Section 32's confirmation preview before saving a match (projected Elo/team win probability) was previously missing from the Record Match screen; it is now implemented as a preview step before submission.
+- **Closed:** Section 44's post-match result summary (`+18 Elo`, rank transition, per-player breakdown) was previously missing; it is now shown after a match is recorded, including Demotion Shield state changes.
+- **Closed:** Section 33's random team generator had a service (`RandomTeamService`) but no screen. A "Generate teams" page now exists.
+- **Closed:** Section 34's Player Profile screen did not exist (only a flat players list did). A full profile page now exists per player: rank, RR, Elo, peak Elo, core stats, streaks, biggest Elo gain/loss, the full teammate table with Best/Worst Teammate, season history, and recent matches.
+- **Deviation:** Section 29 suggests `is_placement_match` and `placement_number` columns on the `matches` table. These were not added. A single match can be a placement match for one player and a regular ranked match for their teammates (each player's placement progress advances independently), so a match-level flag cannot represent this correctly. Placement status is instead read per player from `rating_events.placement_matches_before` / `placement_matches_after` (already part of the original schema), which is unambiguous. Section 13's "Placement Match History" requirement — that placement progress is visible and tied to specific matches — is still met, just per player rather than per match.
+- **UI framework:** Section 35 is unchanged in substance (Angular Material) but the app now uses a dark, Material 3 "competitive" theme (red primary, tier-colored rank badges modeled loosely on Valorant's rank-color ladder) rather than the default light azure/blue theme, per section 35's "competitive, sporty, game-like" requirement.
