@@ -1879,3 +1879,70 @@ Recording where this pass closed gaps against the original spec, and one deliber
 # 52. Addendum — Placement Matches Required Raised to 10
 
 Section 4 and section 13 originally required exactly **5** placement matches. This is raised to **10**, effective for every player who has not yet finished placement as of this change; players who already completed placement under the old rule of 5 keep the rank they earned and are not re-placed. Every other placement rule in sections 4, 13, 39, 41, and 46-47 (Elo mechanics, no RR display, no Demotion Shield, contributing to W/L and teammate stats, the reveal-after-completion flow) is unchanged -- only the number 5 becomes 10 everywhere it specified the placement-match count. `PLACEMENT_MATCHES_REQUIRED` in `rank.constants.ts` is the single frontend source of truth; the backend enforces the same number via the `players` table's `placement_matches_played`/`placement_complete` CHECK constraints and inside `record_match` (see `supabase/migrations/20260922160000_placement_matches_ten.sql`).
+
+---
+
+# 53. Addendum — Fixed: Ranked Players Incorrectly Required an Always-Active Demotion Shield
+
+A third bug, uncovered by production testing after the two fixes above: the original `players` table CHECK constraint enforcing section 18's shield rules was written as a biconditional --
+
+```text
+(visible_rank = 'Unranked') = (NOT demotion_shield_active)
+```
+
+-- rather than the one-directional rule section 18 actually specifies (an Unranked player, who has no rank yet, cannot have an active shield). Because `=` makes both directions mandatory, this constraint also required the reverse: every *ranked* player had to have `demotion_shield_active = true` at all times. Per section 18, the shield is optional and inactive by default, only arming once a ranked player hits a rank floor -- so "ranked with the shield off" is the normal state for nearly every player nearly all the time, and this constraint rejected it outright.
+
+This went undetected through every previous test match because, until section 52's fix, no player had ever actually finished placement and had a match write their row afterward -- every match so far happened while its players were still Unranked, where the constraint's (correct) other half was the only one ever exercised. The first player to complete placement and reach ranked status immediately hit it.
+
+Fixed in `supabase/migrations/20260922162000_fix_ranked_demotion_shield_check.sql`, which replaces the biconditional with `check (not (visible_rank = 'Unranked' and demotion_shield_active))` -- forbidding only the one truly invalid combination and leaving both ranked states (shield on or off) valid.
+
+
+---
+
+# 54. Addendum — Live Mode
+
+Adds a new screen, `LiveMatchComponent` (route `/live`), for recording a match's score in real time from a single shared device (e.g. one phone propped at the table) instead of only after the fact. This is additive: the existing Record Match screen (section 32) and its `record_match` RPC are unchanged and remain fully supported side by side with Live Mode.
+
+## Device model
+
+Live Mode assumes **one shared scoreboard device** used by whoever is standing at the table, not a per-player synced session. Nothing here introduces realtime sync between multiple phones; that was explicitly considered and deferred (see "Deferred: live visibility elsewhere" below).
+
+## Flow
+
+1. **Setup.** Pick the four players (Team A 1/2, Team B 1/2, all distinct, same validation as Record Match) and a "first to N" target score (default 10).
+2. **Live.** The screen becomes a full-viewport, two-zone scoreboard: tapping either half increments that team's score. A single global Undo button removes the last point (from whichever team scored it, restoring exact history order, not just decrementing a total). A close (✕) button asks for confirmation before discarding the whole in-progress match.
+3. **Finish prompt.** The moment a team's score reaches the target *and* they are strictly ahead, a bottom sheet appears: "Finish the match?" with the final score and a live-projected Elo change per player (via the same `EloService.project` used by Record Match's preview). Two actions: **Keep playing** (dismisses the prompt for that exact score; it reappears if the score changes again and the finish condition is met again -- e.g. after an Undo and a replay) or **Confirm & finish**, which is the only action that actually submits anything.
+4. **Submit.** Confirming calls the exact same `record_match` RPC that Record Match uses, with the final score passed through as `scoreA`/`scoreB` (informational only, per section 9 -- it does not affect Elo; only `winner` does) and a note marking it as recorded via Live Mode. The result screen reuses Record Match's per-player result-row pattern (Elo delta, rank transition, Demotion Shield armed/saved/demoted badges).
+
+Nothing is written to Supabase, and nothing appears on the leaderboard, until step 4's confirm tap. Live Mode makes *entering* a result faster and more natural during play; it does not stream partial scores to the backend or to other viewers.
+
+## Persistence
+
+The in-progress match (player IDs, target score, running score, full point-by-point history, start time) is saved to `localStorage` after every point, under key `tf-live-match-v1`, so a refreshed tab or a phone that locked mid-match resumes exactly where it left off. On load, if any of the four referenced players is no longer active, the saved match is discarded with an explanation rather than resumed into a broken state. The persisted state is cleared the moment the match is confirmed finished or explicitly discarded. This is a client-side convenience only -- it has no bearing on the authoritative match record, which is written exactly once, atomically, by `record_match`.
+
+## Navigation
+
+The toolbar's primary call-to-action and the dashboard's primary hero button now point to Live Match (`bolt` icon) instead of Record Match; Record Match remains one tap away (toolbar nav / mobile menu / dashboard secondary button) for recording a match after the fact.
+
+## Deferred: live visibility elsewhere
+
+A "Live now" indicator -- e.g. a dashboard banner showing an in-progress live match's running score before it's confirmed -- was discussed and deliberately **not** built in this pass. It would need either polling or realtime sync of the in-progress state (currently purely local to the scoreboard device), which is more than this pass's single-device model requires. Noted here as a future idea, not implemented.
+
+
+---
+
+# 55. Addendum — Fixed: Production Bundle Exceeded GitHub Pages Build Budget
+
+`ng build --configuration production` was failing outright with `[ERROR] bundle initial exceeded maximum budget` (1.05 MB against a 1 MB `maximumError` budget after Live Mode's addition -- Pedro had already hit a smaller 36.55 kB overage before that). This blocks the GitHub Pages deploy workflow entirely, since `.github/workflows/deploy-pages.yml` runs exactly this build and fails the job (and therefore the deploy) on the same error.
+
+## Root cause
+
+Every route in `app.routes.ts` used eager `component:` references, so every feature component (dashboard, leaderboard, matches, players, teams, seasons, live match, and all of Angular Material they pull in) was imported directly by the root route config and bundled into the single initial chunk -- there was no code-splitting at all. The app only ever renders one route at a time, so nearly all of that code was dead weight on every page load.
+
+## Fix
+
+`app.routes.ts` now uses `loadComponent: () => import(...).then(m => m.XComponent)` for every route instead of eager `component:` imports. This is a purely mechanical, behavior-preserving change -- Angular's router lazy-loads the matched route's component (and only that component's own imports) on navigation, code-splitting each feature into its own chunk. No routing behavior, guard, or resolver logic changed.
+
+Result: the initial bundle dropped from 1.05 MB (failing) to 621.82 kB raw / 152.58 kB gzipped -- comfortably under budget, with each feature now its own small lazy chunk (17-45 kB raw) fetched only when its route is visited. `angular.json`'s production `initial` budget was tightened from `500kB`/`1MB` (warning/error) to `650kB`/`900kB` to reflect the new baseline with headroom, rather than leaving stale numbers that no longer mean anything.
+
+This keeps the app on GitHub Pages' free static hosting exactly as originally specified (section 2, section 42) -- no server, no paid tier, no change to the deploy workflow's `cp index.html 404.html` SPA-fallback trick, which still works unchanged since routing itself (path structure, guards) is untouched.

@@ -324,3 +324,212 @@ don't want 10 placement matches.
 
 - `ng test` still not run in this sandbox (see the original entry above);
   the same recommendation to run it locally applies to this change too.
+
+---
+
+## 2026-09-22 — Follow-up: 20260922160000 failed to apply, constraint-name lookup fixed
+
+Pedro applied `20260922155000_...constraint_race.sql` successfully, then hit
+this running `20260922160000_placement_matches_ten.sql`:
+
+```
+ERROR: 42710: constraint "players_placement_matches_played_check" for
+relation "players" already exists
+```
+
+**Root cause:** the migration's dynamic constraint lookup matched on the
+literal text `between` inside `pg_get_constraintdef()`'s output. Postgres
+deparses `BETWEEN x AND y` back into `(col >= x) AND (col <= y)` when it
+reconstructs a constraint's definition -- the word "between" never
+survives that round-trip. So the lookup's first pattern never matched the
+original `placement_matches_played between 0 and 5` constraint, leaving it
+in place; the migration's own `add constraint
+players_placement_matches_played_check` then collided with it, because
+Postgres auto-names an unnamed column-level CHECK as
+`<table>_<column>_check` -- exactly the name this migration also chose.
+(The lookup's *second* pattern, matching `placement_complete = (...)`, did
+fire and dropped that constraint successfully -- so the failure was
+partial, and the two ADD CONSTRAINT clauses being one atomic ALTER TABLE
+statement meant neither new constraint got created.)
+
+**Fix, in place in `20260922160000_placement_matches_ten.sql`:** the lookup
+now matches any check constraint on `players` whose definition mentions the
+column name `placement_matches_played` at all, regardless of how Postgres
+chose to spell the comparison. This one pattern catches both of the
+original constraints, and is safe to re-run (it will find, and idempotently
+replace, the constraints this same migration adds) and safe to run again
+against a database already left in the partial state above by the earlier,
+broken attempt (it simply finds one constraint to drop instead of two).
+
+No other file changed. `record_match` was never reached by the earlier
+failed run (it's a separate, later statement in the same file, and the
+ALTER TABLE error stopped execution before it), so the database is still
+correctly on the `20260922155000` fix at a threshold of 5 -- re-running the
+corrected `20260922160000` is the only remaining step.
+
+---
+
+## 2026-09-22 — Migration applied directly via the Supabase MCP connector
+
+Pedro connected a Supabase MCP client mid-session. Used it to inspect the
+live `TableFootball` project (`vhcxkacfxffzqgctxmng`) directly instead of
+reasoning from static file review:
+
+- Confirmed `20260922160000`'s earlier failed run had rolled back
+  completely and atomically (all original constraints and the threshold-5,
+  bug-fixed `record_match` from `20260922155000` were still intact,
+  unchanged) -- the Supabase SQL editor evidently wraps a pasted multi-
+  statement script in one implicit transaction, so the mid-script error
+  undid the whole thing rather than leaving a partial state.
+- Applied the corrected `20260922160000_placement_matches_ten.sql` via
+  `apply_migration`. Verified afterward via direct query:
+  `players_placement_matches_played_check` and
+  `players_placement_complete_check` now both read `10`; the old unnamed
+  `players_check` (threshold 5) is gone.
+- Confirmed Duarte's row (the player who hit the original 400) is
+  untouched and clean: still `4/10` placement matches, no orphaned data
+  from the earlier failed attempts.
+- Ran the security/performance advisors as a sanity check post-DDL-change.
+  Nothing new: the SECURITY warnings are `record_match`/`start_season`
+  being anon-executable `SECURITY DEFINER` functions, which is intentional
+  per the no-auth model (see `docs/no-auth-deployment.md`); the
+  PERFORMANCE notes (a few unindexed match-participant foreign keys, two
+  currently-unused indexes) are pre-existing and minor at this data
+  volume, not caused by this change.
+
+No further action needed from Pedro -- the fix is live. He can retry
+recording Duarte's match in the app.
+
+---
+
+## 2026-09-22 — Third bug: players_check3 required every ranked player to always have an active shield
+
+Testing continued after the placement-ten fix: Pedro tried recording
+Andre & Diogo vs Duarte & Matheus (Team B won) and got a third 400, this
+time `players_check3`:
+
+```
+Failing row contains (..., Diogo, ..., Iron II, 65, 10, t, f, f, t, 7, 3, ...)
+```
+
+Diogo was finishing his 10th (final) placement match on this exact match
+(and losing it). Checked directly against the live database via the
+now-connected Supabase MCP client:
+
+```
+players_check3: CHECK (((visible_rank = 'Unranked') = (NOT demotion_shield_active)))
+```
+
+That `=` is a biconditional, not the one-directional rule section 18
+actually specifies. Besides correctly forbidding an Unranked player from
+having an active shield, it also forced the reverse: every *ranked* player
+had to have `demotion_shield_active = true` at all times, which is never
+true in normal play (the shield starts inactive and only arms at a rank
+floor). This existed since the very first migration but had never been
+exercised -- until the placement-ten fix landed earlier today, no match in
+this database's history had ever been recorded for a player who had
+already left Unranked; every match so far happened during someone's
+placement run.
+
+**Fix:** `supabase/migrations/20260922162000_fix_ranked_demotion_shield_check.sql`
+drops the biconditional and replaces it with
+`check (not (visible_rank = 'Unranked' and demotion_shield_active))` --
+forbidding only the actually-invalid combination. Applied directly to the
+live project via the Supabase MCP connector and verified by querying
+`pg_constraint` afterward; also written to the repo migration file,
+`docs/git-and-supabase-setup.md` (migration 8), and spec addendum section
+53.
+
+Pedro can retry recording that match now.
+
+## 2026-09-22 — Feature: Live Mode
+
+Added a new "Live Mode" screen so players can score a match from a single
+shared phone/device during play, instead of only entering the result
+afterward. Requirements were clarified with Pedro up front:
+
+- One shared scoreboard device (not per-player synced multi-device).
+- Auto-suggest finishing once a team hits the target score and is ahead,
+  but require an explicit confirm tap -- never auto-submit.
+- No "live elsewhere" visibility (e.g. a dashboard banner showing an
+  in-progress match) for now -- explicitly deferred to a future pass per
+  Pedro: "This is an interesting feature that should definitely be
+  implemented in the future, but not now. Make a note of it but for now
+  apply option 1." Recorded as a deferred idea in spec addendum section 54.
+- In-progress-match localStorage persistence (survive refresh/phone lock)
+  confirmed in scope ("Worth doing").
+
+New files:
+- `src/app/features/live-match/live-match.component.ts` -- two-phase
+  component (setup form, then a full-viewport tap-to-score stage). Reuses
+  `MatchService.record` (the same `record_match` RPC Record Match calls)
+  and `EloService.project` for the pre-confirm Elo projection, so the
+  score itself never drives Elo -- only `winner` does, per section 9.
+  Persists in-progress state to `localStorage` under `tf-live-match-v1`,
+  discarding it on load if any of the four saved players is no longer
+  active.
+
+Wiring:
+- New route `/live` in `app.routes.ts`.
+- Toolbar primary CTA and the dashboard's primary hero button now point
+  to Live Match; Record Match moved into the regular nav links / mobile
+  menu and became the dashboard's secondary button, so it's still one tap
+  away for after-the-fact recording.
+
+Also bundled in this commit: a leftover bug found while touching this
+area -- `rank-badge.component.ts`'s Unranked label still hardcoded
+`/5` instead of using `PLACEMENT_MATCHES_REQUIRED`, missed by the
+section-52 sweep because it's a template literal, not a reference to the
+constant. Fixed to read from the constant; confirmed via grep it was the
+only remaining `/5` literal in `src/`.
+
+Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean). A full
+`ng build` could not be run from this environment this session -- the
+project's `node_modules` here has Windows-native esbuild binaries
+(`@esbuild/win32-x64`) mounted into a Linux shell, so `ng build` fails on
+a platform mismatch unrelated to this change. Left for Pedro's own machine
+or for the upcoming GitHub Pages bundle-budget investigation.
+
+Spec doc: new addendum section 54 ("Live Mode"), covering the flow,
+persistence, navigation changes, and the deferred "Live now" indicator
+note above.
+
+## 2026-09-22 — Fixed: production bundle exceeded GitHub Pages build budget
+
+Pedro reported `ng build --configuration production` failing with
+"[ERROR] bundle initial exceeded maximum budget. Budget 1.00 MB was not
+met by 36.55 kB with a total of 1.04 MB." This blocks the GitHub Pages
+deploy workflow (which runs this exact build), so the app couldn't be
+deployed to Pages at all.
+
+Reproduced in a scratch copy of the project (this environment can't run
+`ng build` directly against the real checkout -- its `node_modules` has
+Windows esbuild binaries mounted into a Linux shell, so `ng build` fails
+on a platform mismatch unrelated to the app; copied package.json/
+package-lock.json/src/public/config into the cloud workspace and ran
+`npm ci` there instead, purely to get real bundle numbers). Confirmed:
+1.05 MB initial (now worse than Pedro's 1.04 MB report, since Live Mode
+added more code in the meantime) against the 1 MB error budget.
+
+Root cause: `app.routes.ts` used eager `component:` references for
+every route, so the router config imported every feature component
+directly and the whole app -- every screen, all of it -- landed in one
+initial chunk. There was no code-splitting.
+
+Fix: switched every route to `loadComponent: () => import(...).then(...)`
+instead of `component:`. Purely mechanical -- no routing/guard/resolver
+behavior changed, Angular's router now code-splits each feature into
+its own lazy chunk fetched only on navigation to it. Result: initial
+bundle 1.05 MB -> 621.82 kB raw (152.58 kB gzipped), each feature now a
+17-45 kB lazy chunk. `angular.json`'s production `initial` budget
+tightened from 500kB/1MB (warning/error) to 650kB/900kB to reflect the
+new baseline with headroom rather than leaving stale numbers.
+
+No change to the GitHub Pages deploy workflow itself -- still a static
+build, still the `cp index.html 404.html` SPA-fallback trick, still free
+hosting with no server, exactly as originally specified.
+
+Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean, both in
+the scratch copy and the real project) and a full production build in
+the scratch copy (succeeds, warning-only at the new 650kB line, no
+error). Spec addendum: section 55.

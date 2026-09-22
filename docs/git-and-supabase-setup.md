@@ -47,8 +47,21 @@ order, before using the deployed application:
    finished placement under the old rule of 5 keep their earned rank; only
    players still mid-placement, and every new player from this point on,
    need 10.
+8. `20260922162000_fix_ranked_demotion_shield_check.sql` -- **also an
+   important bug fix.** The original `players_check3` constraint was
+   written as `(visible_rank = 'Unranked') = (NOT demotion_shield_active)`
+   -- a biconditional that, besides correctly forbidding an Unranked player
+   from having an active shield, also incorrectly forbade the single most
+   common state for a ranked player: shield *inactive*. Every ranked
+   player was required to always have an active Demotion Shield, which is
+   never true in normal play. This went undetected until a player actually
+   finished placement and played afterward, because every match recorded
+   before that happened during someone's placement run. Replaces it with a
+   one-directional constraint that only forbids Unranked + shield-active.
 
 If some of these were already applied from an earlier deployment, apply only
 the ones you're missing -- each migration is additive and safe to run once,
 in order. If you're hitting a 400 with `players_check1` when someone
-finishes placement, you're missing migration 6 above.
+finishes placement, you're missing migration 6 above. If you're hitting a
+400 with `players_check3` for an already-ranked player, you're missing
+migration 8 above.

@@ -25,6 +25,7 @@ export class App {
   protected readonly navLinks = [
     { path: '/leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
     { path: '/matches', label: 'Matches', icon: 'history' },
+    { path: '/matches/record', label: 'Record match', icon: 'add_circle' },
     { path: '/players', label: 'Players', icon: 'group' },
     { path: '/teams', label: 'Generate teams', icon: 'shuffle' },
     { path: '/seasons', label: 'Seasons', icon: 'military_tech' }
