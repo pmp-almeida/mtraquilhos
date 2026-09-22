@@ -533,3 +533,19 @@ Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean, both in
 the scratch copy and the real project) and a full production build in
 the scratch copy (succeeds, warning-only at the new 650kB line, no
 error). Spec addendum: section 55.
+
+## 2026-09-22 — Dashboard: Recent Matches shows player names instead of "Team A/B"
+
+The dashboard's "Recent matches" preview card only ever showed "Team A"
+or "Team B" for the winner, with no indication of who actually played.
+The full Match history page (`/matches`) already resolved this
+correctly via `PlayerService.nameMap()` + a `teamNames()` helper; the
+dashboard's compact card just hadn't been given the same treatment.
+
+Brought the dashboard card in line with that existing pattern: it now
+loads the player name map alongside its other dashboard data and shows
+both teams' player names (e.g. "Duarte & Matheus vs Andre & Diogo"),
+highlighting the winning team, with the score and date to the right.
+Purely a display change -- no data model, RPC, or ranking logic touched.
+
+Verified with `npx tsc -p tsconfig.app.json --noEmit` (clean).
