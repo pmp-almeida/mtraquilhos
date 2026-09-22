@@ -35,6 +35,7 @@ const TIERS: RankTier[] = ['Champion', 'Emerald', 'Diamond', 'Platinum', 'Gold',
       <p class="tf-eyebrow">CURRENT STANDINGS</p>
       <h1>Leaderboard</h1>
       <p>Ranked players are ordered by Elo; placement players remain visible as Unranked.</p>
+      <a routerLink="/how-it-works" class="how-link"><mat-icon aria-hidden="true">help_outline</mat-icon>How ranks are calculated</a>
     </section>
 
     <div class="controls">
@@ -80,6 +81,9 @@ const TIERS: RankTier[] = ['Champion', 'Emerald', 'Diamond', 'Platinum', 'Gold',
   styles: [`
     :host { display: block; }
     .heading { margin-bottom: 16px; }
+    .how-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 0.85rem; font-weight: 600; color: var(--mat-sys-primary); text-decoration: none; }
+    .how-link:hover { text-decoration: underline; }
+    .how-link mat-icon { font-size: 18px; width: 18px; height: 18px; }
     h1 { margin: 8px 0; }
     .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
     .tier-filter { width: 160px; }

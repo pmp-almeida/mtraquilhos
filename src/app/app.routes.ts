@@ -46,5 +46,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/seasons/seasons.component').then(m => m.SeasonsComponent),
     title: 'Seasons · Table Football Ranked'
   },
+  {
+    path: 'how-it-works',
+    loadComponent: () => import('./features/how-it-works/how-it-works.component').then(m => m.HowItWorksComponent),
+    title: 'How ranking works · Table Football Ranked'
+  },
   { path: '**', redirectTo: '' }
 ];
