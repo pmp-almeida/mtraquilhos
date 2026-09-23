@@ -38,6 +38,18 @@ body {
   box-sizing: border-box;
 }
 
+// Safety net against horizontal overflow (e.g. a toolbar or a wide row that
+// doesn't quite fit a narrow phone screen): without this, any element even a
+// few pixels wider than the viewport makes the whole page horizontally
+// scrollable, and everything centered with `margin: 0 auto` below it centers
+// against that wider virtual canvas instead of what's actually visible --
+// which is what makes the page look shifted left on load rather than just
+// clipping the one offending element.
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   min-width: 320px;
 }

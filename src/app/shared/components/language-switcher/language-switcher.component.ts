@@ -41,6 +41,13 @@ import { Locale, LOCALE_LABELS, SUPPORTED_LOCALES } from '../../../core/i18n/loc
     .lang-trigger mat-icon { margin: 0; }
     .lang-code { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.03em; }
     .mat-mdc-menu-item.active { color: var(--mat-sys-primary); }
+    // Toolbar real estate is tight on phones (see app.scss) -- drop the
+    // two-letter code and shrink to icon-only, same treatment as the other
+    // toolbar actions once their labels are hidden.
+    @media (max-width: 880px) {
+      .lang-trigger { padding: 0 8px; }
+      .lang-code { display: none; }
+    }
   `]
 })
 export class LanguageSwitcherComponent {
