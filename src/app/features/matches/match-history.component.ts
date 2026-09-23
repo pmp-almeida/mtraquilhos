@@ -1,7 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatchSummary } from '../../core/models/match';
 import { MatchService } from '../../core/services/match.service';
 import { PlayerService } from '../../core/services/player.service';
@@ -10,7 +14,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 @Component({
   selector: 'app-match-history',
   standalone: true,
-  imports: [DatePipe, MatCardModule, MatChipsModule],
+  imports: [DatePipe, MatButtonModule, MatCardModule, MatChipsModule, MatIconModule, MatSnackBarModule, MatTooltipModule],
   template: `
     <section class="heading">
       <p class="tf-eyebrow">{{ i18n.t('matchHistory.eyebrow') }}</p>
@@ -32,6 +36,19 @@ import { I18nService } from '../../core/i18n/i18n.service';
               <small>{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</small>
               <span class="score">{{ match.scoreA === null ? i18n.t('matchHistory.scoreNotRecorded') : match.scoreA + ' – ' + match.scoreB }}</span>
             </div>
+            <div class="rewind">
+              @if (confirmingRewindId() === match.id) {
+                <span class="confirm-prompt">{{ i18n.t('matchHistory.rewindPrompt') }}</span>
+                <button mat-button (click)="confirmingRewindId.set(null)">{{ i18n.t('common.cancel') }}</button>
+                <button mat-button color="warn" [disabled]="rewindingId() === match.id" (click)="rewind(match.id)">
+                  {{ rewindingId() === match.id ? i18n.t('matchHistory.rewinding') : i18n.t('matchHistory.rewindConfirm') }}
+                </button>
+              } @else {
+                <button mat-icon-button [attr.aria-label]="i18n.t('matchHistory.rewindAria')" [matTooltip]="i18n.t('matchHistory.rewindAria')" (click)="confirmingRewindId.set(match.id)">
+                  <mat-icon aria-hidden="true">restore</mat-icon>
+                </button>
+              }
+            </div>
           </div>
         }
       </mat-card-content>
@@ -48,13 +65,18 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
     small { color: var(--mat-sys-on-surface-variant); }
     .score { font-variant-numeric: tabular-nums; }
+    .rewind { display: flex; align-items: center; gap: 4px; }
+    .confirm-prompt { font-size: 0.8rem; color: var(--mat-sys-on-surface-variant); max-width: 220px; }
   `]
 })
 export class MatchHistoryComponent {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly i18n = inject(I18nService);
   readonly matches = signal<MatchSummary[]>([]);
+  readonly confirmingRewindId = signal<string | null>(null);
+  readonly rewindingId = signal<string | null>(null);
   private names: Record<string, string> = {};
   error = '';
 
@@ -70,5 +92,20 @@ export class MatchHistoryComponent {
 
   teamNames(ids: [string, string]): string {
     return ids.map(id => this.names[id] ?? this.i18n.t('common.unknownPlayer')).join(' & ');
+  }
+
+  async rewind(matchId: string): Promise<void> {
+    if (this.rewindingId()) return;
+    this.rewindingId.set(matchId);
+    try {
+      await this.matchService.rewind(matchId);
+      this.matches.update(list => list.filter(m => m.id !== matchId));
+      this.confirmingRewindId.set(null);
+      this.snackBar.open(this.i18n.t('matchHistory.rewindSuccess'), this.i18n.t('common.close'), { duration: 4000 });
+    } catch (error) {
+      this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('matchHistory.rewindError'), this.i18n.t('common.close'), { duration: 6000 });
+    } finally {
+      this.rewindingId.set(null);
+    }
   }
 }

@@ -101,10 +101,16 @@ export const EN_GB = {
   // ---- Match history ----
   'matchHistory.eyebrow': 'RECENT RESULTS',
   'matchHistory.title': 'Match history',
-  'matchHistory.subtitle': 'Completed matches are immutable and processed by the Supabase RPC.',
+  'matchHistory.subtitle': 'Every match is processed by the Supabase RPC. A mistake can be undone with Rewind, which restores every player\'s rating to how it was before that match.',
   'matchHistory.loadError': 'Match history could not be loaded. Check the Supabase configuration.',
   'matchHistory.noMatches': 'No matches recorded yet.',
   'matchHistory.scoreNotRecorded': 'Score not recorded',
+  'matchHistory.rewindAria': 'Rewind this match',
+  'matchHistory.rewindPrompt': 'Rewind this match? Elo, rank and RR changes for all four players will be undone and the match removed from history.',
+  'matchHistory.rewindConfirm': 'Rewind',
+  'matchHistory.rewinding': 'Rewinding…',
+  'matchHistory.rewindSuccess': 'Match rewound — ratings restored to how they were before it.',
+  'matchHistory.rewindError': 'Could not rewind this match.',
 
   // ---- Record match ----
   'recordMatch.recordedTitle': 'Match recorded',
@@ -163,6 +169,8 @@ export const EN_GB = {
   'live.recordError': 'Could not record match.',
   'live.discardedInactivePlayer': 'Your in-progress live match involved a player who is no longer active, so it was discarded.',
   'live.resumed': 'Resumed your in-progress live match.',
+  'live.nextChallengers': 'Winners stay — new challengers',
+  'live.notEnoughForChain': 'Need at least two more active players to line up a fresh challenge.',
 
   // ---- Players ----
   'players.title': 'Players',
@@ -291,7 +299,7 @@ export const EN_GB = {
 
   'howItWorks.shieldSectionTitle': 'The Demotion Shield',
   'howItWorks.shieldP1': "Every ranked player gets a one-use Demotion Shield. It protects your visible rank, not your Elo — your underlying Elo always keeps moving normally with every match, win or lose, shield or no shield.",
-  'howItWorks.shieldP2': "The shield arms itself automatically the moment a match would otherwise push you out of your current rank — that is, your RR is at 0 and you're about to drop a division (or, for Champion, your Elo is about to fall back below {championFloor}). Instead of demoting you immediately, the app keeps your rank and RR frozen right where they were and marks the next match as a demotion match:",
+  'howItWorks.shieldP2': "The shield arms itself automatically the first time a loss would otherwise push you out of your current rank — whether you drifted down to the division floor first or a single big upset loss carries you straight past it in one match (or, for Champion, your Elo falls back below {championFloor}). Instead of demoting you immediately, the app keeps your rank and RR frozen right where they were and marks the next match as a demotion match:",
   'howItWorks.shieldWin': 'Win it — you keep your protected rank, and the shield is used up.',
   'howItWorks.shieldLose': 'Lose it — you demote to wherever your Elo now lands, and the shield is used up.',
   'howItWorks.shieldP3': "Either way, the shield only fires once. Once it's been used (won or lost), you won't get another one until… well, right now there's no way to earn a new one automatically once ranked — it's a single safety net, not a recurring one, for every rank all the way down to Lixo.",
