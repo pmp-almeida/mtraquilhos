@@ -10,6 +10,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatchService } from '../../core/services/match.service';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
+import { teamPairKey } from '../../core/models/team-name';
+import { TeamNameService } from '../../core/services/team-name.service';
 import { RecordMatchResult } from '../../core/models/match';
 import { EloService } from '../../rank/elo.service';
 import { RankService } from '../../rank/rank.service';
@@ -144,11 +146,11 @@ const STORAGE_KEY = 'tf-live-match-v1';
           <div class="zones">
             <button type="button" class="zone team-a" (click)="addPoint('A')">
               <span class="score">{{ scoreA() }}</span>
-              <span class="names">{{ teamAName1() }} &amp; {{ teamAName2() }}</span>
+              <span class="names">{{ teamALabel() }}</span>
             </button>
             <button type="button" class="zone team-b" (click)="addPoint('B')">
               <span class="score">{{ scoreB() }}</span>
-              <span class="names">{{ teamBName1() }} &amp; {{ teamBName2() }}</span>
+              <span class="names">{{ teamBLabel() }}</span>
             </button>
           </div>
 
@@ -276,6 +278,7 @@ export class LiveMatchComponent {
   private readonly fb = inject(FormBuilder);
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
+  private readonly teamNameService = inject(TeamNameService);
   private readonly eloService = inject(EloService);
   private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
@@ -293,6 +296,7 @@ export class LiveMatchComponent {
   });
 
   readonly players = signal<Player[]>([]);
+  readonly teamNameMap = signal<Record<string, string>>({});
   readonly phase = signal<'setup' | 'live'>('setup');
   readonly confirmingCancel = signal(false);
   readonly submitting = signal(false);
@@ -357,17 +361,24 @@ export class LiveMatchComponent {
     ];
   });
 
-  readonly teamAName1 = computed(() => this.nameOf(this.idsSignal().a1));
-  readonly teamAName2 = computed(() => this.nameOf(this.idsSignal().a2));
-  readonly teamBName1 = computed(() => this.nameOf(this.idsSignal().b1));
-  readonly teamBName2 = computed(() => this.nameOf(this.idsSignal().b2));
+  /** Custom team name for the current pair, if one's been set, otherwise "Player A & Player B" -- purely cosmetic, doesn't touch who's actually recorded. */
+  readonly teamALabel = computed(() => {
+    const ids = this.idsSignal();
+    return this.teamLabelFor(ids.a1, ids.a2);
+  });
+  readonly teamBLabel = computed(() => {
+    const ids = this.idsSignal();
+    return this.teamLabelFor(ids.b1, ids.b2);
+  });
 
   /** "Winners stay" needs at least two active players besides the four who just played. */
   readonly canChainMatch = computed(() => this.players().length >= 6);
 
   async ngOnInit(): Promise<void> {
     try {
-      this.players.set(await this.playerService.listActive());
+      const [players, teamNameMap] = await Promise.all([this.playerService.listActive(), this.teamNameService.nameMap()]);
+      this.players.set(players);
+      this.teamNameMap.set(teamNameMap);
     } catch {
       this.snackBar.open(this.i18n.t('live.playersLoadError'), this.i18n.t('common.close'), { duration: 4000 });
       return;
@@ -403,6 +414,11 @@ export class LiveMatchComponent {
 
   nameOf(playerId: string): string {
     return this.players().find(p => p.id === playerId)?.displayName ?? this.i18n.t('common.unknownPlayer');
+  }
+
+  private teamLabelFor(idA: string, idB: string): string {
+    const custom = this.teamNameMap()[teamPairKey(idA, idB)];
+    return custom ?? `${this.nameOf(idA)} & ${this.nameOf(idB)}`;
   }
 
   start(): void {

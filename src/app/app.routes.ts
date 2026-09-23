@@ -42,6 +42,11 @@ export const routes: Routes = [
     title: 'Generate teams · MTraquilhos'
   },
   {
+    path: 'team-names',
+    loadComponent: () => import('./features/team-names/team-names.component').then(m => m.TeamNamesComponent),
+    title: 'Team names · MTraquilhos'
+  },
+  {
     path: 'seasons',
     loadComponent: () => import('./features/seasons/seasons.component').then(m => m.SeasonsComponent),
     title: 'Seasons · MTraquilhos'

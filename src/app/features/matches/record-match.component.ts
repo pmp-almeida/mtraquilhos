@@ -12,6 +12,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatchService } from '../../core/services/match.service';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
+import { teamPairKey } from '../../core/models/team-name';
+import { TeamNameService } from '../../core/services/team-name.service';
 import { RecordMatchResult } from '../../core/models/match';
 import { EloService } from '../../rank/elo.service';
 import { RankService } from '../../rank/rank.service';
@@ -111,6 +113,7 @@ interface PlayerProjection {
             <div class="teams">
               <div class="team">
                 <h3>{{ i18n.t('teams.teamA') }}</h3>
+                @if (namedTeamForSide('A'); as name) { <p class="assumed-name">{{ i18n.t('teams.assumedTeamName', { name }) }}</p> }
                 @for (p of proj.players; track p.playerId) {
                   @if (p.team === 'A') {
                     <div class="proj-row">
@@ -129,6 +132,7 @@ interface PlayerProjection {
               </div>
               <div class="team">
                 <h3>{{ i18n.t('teams.teamB') }}</h3>
+                @if (namedTeamForSide('B'); as name) { <p class="assumed-name">{{ i18n.t('teams.assumedTeamName', { name }) }}</p> }
                 @for (p of proj.players; track p.playerId) {
                   @if (p.team === 'B') {
                     <div class="proj-row">
@@ -163,6 +167,7 @@ interface PlayerProjection {
     .preview-card { margin-top: 16px; }
     .teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; }
     .team h3 { margin: 0 0 8px; font-size: 0.95rem; }
+    .assumed-name { margin: -4px 0 8px; color: var(--mat-sys-on-surface-variant); font-size: 0.78rem; }
     .proj-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; }
     .vs { text-align: center; }
     .prob { font-size: 1.6rem; font-weight: 700; display: block; }
@@ -185,6 +190,7 @@ export class RecordMatchComponent {
   private readonly fb = inject(FormBuilder);
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
+  private readonly teamNameService = inject(TeamNameService);
   private readonly eloService = inject(EloService);
   private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
@@ -205,14 +211,29 @@ export class RecordMatchComponent {
   saving = signal(false);
   readonly projection = signal<{ teamAElo: number; teamBElo: number; expectedA: number; players: PlayerProjection[] } | null>(null);
   readonly result = signal<RecordMatchResult | null>(null);
+  private teamNameMap: Record<string, string> = {};
 
   async ngOnInit(): Promise<void> {
-    try { this.players.set(await this.playerService.listActive()); }
-    catch { this.snackBar.open(this.i18n.t('recordMatch.playersLoadError'), this.i18n.t('common.close'), { duration: 4000 }); }
+    try {
+      const [players, teamNameMap] = await Promise.all([this.playerService.listActive(), this.teamNameService.nameMap()]);
+      this.players.set(players);
+      this.teamNameMap = teamNameMap;
+    } catch {
+      this.snackBar.open(this.i18n.t('recordMatch.playersLoadError'), this.i18n.t('common.close'), { duration: 4000 });
+    }
   }
 
   nameOf(playerId: string): string {
     return this.players().find(p => p.id === playerId)?.displayName ?? this.i18n.t('common.unknownPlayer');
+  }
+
+  /** The custom team name for whichever pair is currently previewed on this side, if any -- purely a fun reveal here, has no bearing on the match being recorded. */
+  namedTeamForSide(team: 'A' | 'B'): string | null {
+    const proj = this.projection();
+    if (!proj) return null;
+    const ids = proj.players.filter(p => p.team === team).map(p => p.playerId);
+    if (ids.length !== 2) return null;
+    return this.teamNameMap[teamPairKey(ids[0], ids[1])] ?? null;
   }
 
   preview(): void {

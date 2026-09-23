@@ -32,6 +32,7 @@ export class App {
     { path: '/matches/record', labelKey: 'nav.recordMatch', icon: 'add_circle' },
     { path: '/players', labelKey: 'nav.players', icon: 'group' },
     { path: '/teams', labelKey: 'nav.teams', icon: 'shuffle' },
+    { path: '/team-names', labelKey: 'nav.teamNames', icon: 'sell' },
     { path: '/seasons', labelKey: 'nav.seasons', icon: 'military_tech' }
   ];
 }

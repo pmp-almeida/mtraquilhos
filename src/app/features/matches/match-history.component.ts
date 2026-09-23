@@ -9,6 +9,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatchSummary } from '../../core/models/match';
 import { MatchService } from '../../core/services/match.service';
 import { PlayerService } from '../../core/services/player.service';
+import { teamPairKey } from '../../core/models/team-name';
+import { TeamNameService } from '../../core/services/team-name.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
@@ -72,25 +74,33 @@ import { I18nService } from '../../core/i18n/i18n.service';
 export class MatchHistoryComponent {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
+  private readonly teamNameService = inject(TeamNameService);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly i18n = inject(I18nService);
   readonly matches = signal<MatchSummary[]>([]);
   readonly confirmingRewindId = signal<string | null>(null);
   readonly rewindingId = signal<string | null>(null);
   private names: Record<string, string> = {};
+  private teamNameMap: Record<string, string> = {};
   error = '';
 
   async ngOnInit(): Promise<void> {
     try {
-      const [matches, names] = await Promise.all([this.matchService.listRecent(50), this.playerService.nameMap()]);
+      const [matches, names, teamNameMap] = await Promise.all([
+        this.matchService.listRecent(50), this.playerService.nameMap(), this.teamNameService.nameMap()
+      ]);
       this.matches.set(matches);
       this.names = names;
+      this.teamNameMap = teamNameMap;
     } catch {
       this.error = this.i18n.t('matchHistory.loadError');
     }
   }
 
+  /** The pair's custom team name if one is set, otherwise "Player A & Player B" -- purely cosmetic, has no bearing on which players/Elo/RR the match actually involves. */
   teamNames(ids: [string, string]): string {
+    const custom = this.teamNameMap[teamPairKey(ids[0], ids[1])];
+    if (custom) return custom;
     return ids.map(id => this.names[id] ?? this.i18n.t('common.unknownPlayer')).join(' & ');
   }
 
