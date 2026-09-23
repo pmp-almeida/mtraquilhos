@@ -10,6 +10,8 @@ import { PassphraseGateComponent } from './shared/components/passphrase-gate/pas
 import { I18nService } from './core/i18n/i18n.service';
 import { TranslationKey } from './core/i18n/en-gb';
 import { LanguageSwitcherComponent } from './shared/components/language-switcher/language-switcher.component';
+import { ThemeToggleComponent } from './shared/components/theme-toggle/theme-toggle.component';
+import { InstallButtonComponent } from './shared/components/install-button/install-button.component';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +19,7 @@ import { LanguageSwitcherComponent } from './shared/components/language-switcher
   imports: [
     RouterLink, RouterLinkActive, RouterOutlet,
     MatButtonModule, MatIconModule, MatMenuModule, MatToolbarModule, MatTooltipModule,
-    PassphraseGateComponent, LanguageSwitcherComponent
+    PassphraseGateComponent, LanguageSwitcherComponent, ThemeToggleComponent, InstallButtonComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'

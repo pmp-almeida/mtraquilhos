@@ -7,14 +7,15 @@ import { MatInputModule } from '@angular/material/input';
 import { AccessGateService } from '../../../core/services/access-gate.service';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
+import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component';
 
 @Component({
   selector: 'app-passphrase-gate',
   standalone: true,
-  imports: [FormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, LanguageSwitcherComponent],
+  imports: [FormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatInputModule, LanguageSwitcherComponent, ThemeToggleComponent],
   template: `
     <div class="gate">
-      <div class="gate-lang"><app-language-switcher /></div>
+      <div class="gate-lang"><app-theme-toggle /><app-language-switcher /></div>
       <mat-card class="gate-card">
         <mat-card-header>
           <mat-card-title>{{ i18n.t('app.brand') }}</mat-card-title>

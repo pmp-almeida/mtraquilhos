@@ -15,6 +15,7 @@ import { PlayerSeasonStats } from '../../core/models/season';
 import { teamPairKey } from '../../core/models/team-name';
 import { TeamNameService } from '../../core/services/team-name.service';
 import { TeammateStatsService, TeammateStat } from '../../rank/teammate-stats.service';
+import { HeadToHeadStatsService, HeadToHeadStat } from '../../rank/head-to-head-stats.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
 import { PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.constants';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -87,6 +88,25 @@ import { I18nService } from '../../core/i18n/i18n.service';
         </mat-card>
 
         <mat-card>
+          <mat-card-header><mat-card-title>{{ i18n.t('playerProfile.headToHeadTitle') }}</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="best-worst">
+              <div><span class="stat-label">{{ i18n.t('playerProfile.bestMatchup') }}</span><strong>{{ bestMatchup() ? nameOf(bestMatchup()!.playerId) + ' — ' + pct(bestMatchup()!.winRate) + '%' : i18n.t('common.dash') }}</strong></div>
+              <div><span class="stat-label">{{ i18n.t('playerProfile.worstMatchup') }}</span><strong>{{ worstMatchup() ? nameOf(worstMatchup()!.playerId) + ' — ' + pct(worstMatchup()!.winRate) + '%' : i18n.t('common.dash') }}</strong></div>
+            </div>
+            @if (!headToHeadStats().length) { <p class="tf-empty">{{ i18n.t('playerProfile.noMatches') }}</p> }
+            @for (stat of headToHeadStats(); track stat.playerId) {
+              <div class="teammate-row">
+                <a [routerLink]="['/players', stat.playerId]">{{ nameOf(stat.playerId) }}</a>
+                <span>{{ i18n.tCount(stat.matches, 'playerProfile.matchesCount') }}</span>
+                <span>{{ stat.wins }}{{ i18n.t('common.winAbbr') }} – {{ stat.losses }}{{ i18n.t('common.lossAbbr') }}</span>
+                <span class="win-rate">{{ pct(stat.winRate) }}%</span>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
           <mat-card-header><mat-card-title>{{ i18n.t('playerProfile.seasonHistoryTitle') }}</mat-card-title></mat-card-header>
           <mat-card-content>
             @if (!seasonHistory().length) { <p class="tf-empty">{{ i18n.t('playerProfile.noSeasonHistory') }}</p> }
@@ -107,8 +127,13 @@ import { I18nService } from '../../core/i18n/i18n.service';
           @for (match of matches().slice(0, 25); track match.id) {
             <div class="match-row">
               <mat-icon [class.tf-win]="wonMatch(match)" [class.tf-loss]="!wonMatch(match)">{{ wonMatch(match) ? 'trending_up' : 'trending_down' }}</mat-icon>
-              <span>{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</span>
-              <span>{{ i18n.t('playerProfile.vsOpponents', { names: opponentNames(match) }) }}</span>
+              <div class="match-info">
+                <span class="match-date">{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</span>
+                <span class="match-teams">
+                  {{ i18n.t('playerProfile.withTeammate', { name: teammateName(match) }) }} ·
+                  {{ i18n.t('playerProfile.vsOpponents', { names: opponentNames(match) }) }}
+                </span>
+              </div>
             </div>
           }
         </mat-card-content>
@@ -125,13 +150,16 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
     .stat-label { display: block; color: var(--mat-sys-on-surface-variant); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
     .stats-grid strong { font-size: 1.4rem; }
-    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
     .best-worst { display: flex; gap: 24px; margin-bottom: 12px; }
     .teammate-row, .season-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--mat-sys-outline-variant); font-size: 0.9rem; }
     .teammate-row a { color: inherit; font-weight: 600; text-decoration: none; }
     .win-rate { font-variant-numeric: tabular-nums; font-weight: 600; }
     .match-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--mat-sys-outline-variant); font-size: 0.9rem; }
-    .match-row mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    .match-row mat-icon { font-size: 20px; width: 20px; height: 20px; flex: none; }
+    .match-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .match-date { color: var(--mat-sys-on-surface-variant); font-size: 0.78rem; }
+    @media (max-width: 1100px) { .split { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .split { grid-template-columns: 1fr; } }
   `]
 })
@@ -141,6 +169,7 @@ export class PlayerProfileComponent {
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
   private readonly teammateStatsService = inject(TeammateStatsService);
+  private readonly headToHeadStatsService = inject(HeadToHeadStatsService);
   private readonly teamNameService = inject(TeamNameService);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly i18n = inject(I18nService);
@@ -170,6 +199,14 @@ export class PlayerProfileComponent {
   });
   readonly bestTeammate = computed(() => this.teammateStatsService.best(this.teammateStats()));
   readonly worstTeammate = computed(() => this.teammateStatsService.worst(this.teammateStats()));
+
+  readonly headToHeadStats = computed<HeadToHeadStat[]>(() => {
+    if (!this.playerId) return [];
+    return this.headToHeadStatsService.computeFromMatches(this.playerId, this.matches())
+      .sort((a, b) => b.matches - a.matches);
+  });
+  readonly bestMatchup = computed(() => this.headToHeadStatsService.bestMatchup(this.headToHeadStats()));
+  readonly worstMatchup = computed(() => this.headToHeadStatsService.worstMatchup(this.headToHeadStats()));
 
   readonly currentStreak = computed(() => {
     // matches() is newest-first; walk forward until the result flips.
@@ -246,6 +283,14 @@ export class PlayerProfileComponent {
   wonMatch(match: MatchSummary): boolean {
     const onTeamA = match.teamAPlayerIds.includes(this.playerId);
     return (onTeamA && match.winner === 'A') || (!onTeamA && match.winner === 'B');
+  }
+
+  /** The other player on this player's own side of the match -- exactly one in a 2v2. */
+  teammateName(match: MatchSummary): string {
+    const onTeamA = match.teamAPlayerIds.includes(this.playerId);
+    const ownTeam = onTeamA ? match.teamAPlayerIds : match.teamBPlayerIds;
+    const teammateId = ownTeam.find(id => id !== this.playerId);
+    return teammateId ? this.nameOf(teammateId) : this.i18n.t('common.unknownPlayer');
   }
 
   opponentNames(match: MatchSummary): string {

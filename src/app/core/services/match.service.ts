@@ -65,6 +65,21 @@ export class MatchService {
     return (data ?? []).map(row => this.mapRow(row));
   }
 
+  /**
+   * Every recorded match, newest first, for club-wide aggregate stats (Best
+   * Team leaderboard, "The One Who Carries", head-to-head) that need the
+   * full history rather than the last N shown on a display list. The
+   * default limit is generous rather than unbounded so a very long-running
+   * group's history can't blow out a single query.
+   */
+  async listAll(limit = 5000): Promise<MatchSummary[]> {
+    if (!this.supabase.client) return [];
+    const { data, error } = await this.supabase.client.from('matches')
+      .select(MATCH_COLUMNS).order('played_at', { ascending: false }).limit(limit);
+    if (error) throw error;
+    return (data ?? []).map(row => this.mapRow(row));
+  }
+
   async listForPlayer(playerId: string, limit = 100): Promise<MatchSummary[]> {
     if (!this.supabase.client) return [];
     const { data, error } = await this.supabase.client.from('matches')

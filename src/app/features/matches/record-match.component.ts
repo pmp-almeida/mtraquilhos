@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DecimalPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -98,6 +99,7 @@ interface PlayerProjection {
               <mat-radio-button value="A">{{ i18n.t('recordMatch.teamAWins') }}</mat-radio-button>
               <mat-radio-button value="B">{{ i18n.t('recordMatch.teamBWins') }}</mat-radio-button>
             </mat-radio-group>
+            <p class="hint">{{ i18n.t('recordMatch.winnerAutoNote') }}</p>
             <div class="actions">
               <button mat-button type="button" (click)="clear()">{{ i18n.t('common.clear') }}</button>
               <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">{{ i18n.t('recordMatch.previewMatch') }}</button>
@@ -161,6 +163,7 @@ interface PlayerProjection {
   styles: [`
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
     mat-radio-button { margin: 12px 16px 12px 0; }
+    .hint { margin: -4px 0 0; color: var(--mat-sys-on-surface-variant); font-size: 0.78rem; }
     .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
     @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
 
@@ -194,6 +197,7 @@ export class RecordMatchComponent {
   private readonly eloService = inject(EloService);
   private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly i18n = inject(I18nService);
 
   readonly playerFields = ['teamAPlayer1', 'teamAPlayer2', 'teamBPlayer1', 'teamBPlayer2'] as const;
@@ -212,6 +216,30 @@ export class RecordMatchComponent {
   readonly projection = signal<{ teamAElo: number; teamBElo: number; expectedA: number; players: PlayerProjection[] } | null>(null);
   readonly result = signal<RecordMatchResult | null>(null);
   private teamNameMap: Record<string, string> = {};
+  private winnerTouched = false;
+
+  constructor() {
+    // Suggest the winner from the scores as soon as both are entered, but
+    // only until the player picks a side themselves -- after that, typing
+    // a corrected score doesn't silently flip their explicit choice back.
+    this.form.controls.winner.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.winnerTouched = true;
+    });
+    this.form.controls.scoreA.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.autoSelectWinner());
+    this.form.controls.scoreB.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.autoSelectWinner());
+  }
+
+  /** Picks the winning team from the entered scores, so the common case (typing the score) doesn't also require a separate manual click -- see the constructor for why this stops once the player has touched the radio group themselves. */
+  private autoSelectWinner(): void {
+    if (this.winnerTouched) return;
+    const { scoreA, scoreB } = this.form.getRawValue();
+    if (scoreA === null || scoreB === null || scoreA === scoreB) return;
+    const winner = scoreA > scoreB ? 'A' : 'B';
+    if (this.form.controls.winner.value !== winner) {
+      this.form.controls.winner.setValue(winner);
+      this.winnerTouched = false; // programmatic change, not the player -- keep auto-selecting as they keep typing
+    }
+  }
 
   async ngOnInit(): Promise<void> {
     try {
@@ -295,6 +323,7 @@ export class RecordMatchComponent {
 
   clear(): void {
     this.form.reset({ winner: 'A' });
+    this.winnerTouched = false; // form.reset() also emits on the winner control -- don't let that count as a manual pick
     this.projection.set(null);
   }
 

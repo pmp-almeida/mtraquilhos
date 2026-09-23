@@ -12,6 +12,9 @@ html {
   // surface, echoing the dark ranked-menu aesthetic of games like Valorant
   // rather than a generic light admin panel. Density -1 keeps rows compact
   // so a leaderboard or match history reads like a scoreboard, not a form.
+  // This is the default theme -- applied to plain `html` with no attribute
+  // -- so it's what renders before ThemeService's effect ever runs and for
+  // anyone who has never chosen a theme.
   @include mat.theme(
     (
       color: (
@@ -23,6 +26,27 @@ html {
       density: -1,
     )
   );
+
+  // Light variant of the same palette, scoped under a `data-theme`
+  // attribute that ThemeService toggles at runtime. `mat.theme()` bakes its
+  // CSS custom properties into whatever selector it's included under, so
+  // including it a second time under a narrower selector like this one
+  // simply overrides those variables for anything inside it -- no rebuild
+  // or page reload needed to switch, the same runtime-toggle approach this
+  // app already uses for language (see I18nService).
+  &[data-theme='light'] {
+    @include mat.theme(
+      (
+        color: (
+          theme-type: light,
+          primary: mat.$red-palette,
+          tertiary: mat.$cyan-palette,
+        ),
+        typography: Roboto,
+        density: -1,
+      )
+    );
+  }
 }
 
 body {
@@ -32,6 +56,10 @@ body {
   font: var(--mat-sys-body-medium);
   margin: 0;
   height: 100%;
+}
+
+html[data-theme='light'] body {
+  color-scheme: light;
 }
 
 * {
