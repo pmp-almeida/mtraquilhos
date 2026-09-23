@@ -107,8 +107,13 @@ import { I18nService } from '../../core/i18n/i18n.service';
           @for (match of matches().slice(0, 25); track match.id) {
             <div class="match-row">
               <mat-icon [class.tf-win]="wonMatch(match)" [class.tf-loss]="!wonMatch(match)">{{ wonMatch(match) ? 'trending_up' : 'trending_down' }}</mat-icon>
-              <span>{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</span>
-              <span>{{ i18n.t('playerProfile.vsOpponents', { names: opponentNames(match) }) }}</span>
+              <div class="match-info">
+                <span class="match-date">{{ match.playedAt | date:'medium':undefined:i18n.locale() }}</span>
+                <span class="match-teams">
+                  {{ i18n.t('playerProfile.withTeammate', { name: teammateName(match) }) }} ·
+                  {{ i18n.t('playerProfile.vsOpponents', { names: opponentNames(match) }) }}
+                </span>
+              </div>
             </div>
           }
         </mat-card-content>
@@ -131,7 +136,9 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .teammate-row a { color: inherit; font-weight: 600; text-decoration: none; }
     .win-rate { font-variant-numeric: tabular-nums; font-weight: 600; }
     .match-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--mat-sys-outline-variant); font-size: 0.9rem; }
-    .match-row mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    .match-row mat-icon { font-size: 20px; width: 20px; height: 20px; flex: none; }
+    .match-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .match-date { color: var(--mat-sys-on-surface-variant); font-size: 0.78rem; }
     @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .split { grid-template-columns: 1fr; } }
   `]
 })
@@ -246,6 +253,14 @@ export class PlayerProfileComponent {
   wonMatch(match: MatchSummary): boolean {
     const onTeamA = match.teamAPlayerIds.includes(this.playerId);
     return (onTeamA && match.winner === 'A') || (!onTeamA && match.winner === 'B');
+  }
+
+  /** The other player on this player's own side of the match -- exactly one in a 2v2. */
+  teammateName(match: MatchSummary): string {
+    const onTeamA = match.teamAPlayerIds.includes(this.playerId);
+    const ownTeam = onTeamA ? match.teamAPlayerIds : match.teamBPlayerIds;
+    const teammateId = ownTeam.find(id => id !== this.playerId);
+    return teammateId ? this.nameOf(teammateId) : this.i18n.t('common.unknownPlayer');
   }
 
   opponentNames(match: MatchSummary): string {
