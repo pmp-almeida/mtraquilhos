@@ -14,6 +14,29 @@ export class PlayerService {
     return (data ?? []).map(row => this.mapPlayer(row));
   }
 
+  /** Every player, active or not -- powers the Players management page so inactive players can be found again and reactivated. */
+  async listAll(): Promise<Player[]> {
+    if (!this.supabase.client) return [];
+    const { data, error } = await this.supabase.client.from('players').select('*')
+      .order('active', { ascending: false }).order('current_elo', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(row => this.mapPlayer(row));
+  }
+
+  /**
+   * Marks a player active or inactive. Inactive players (on holiday, no
+   * longer playing, etc.) are excluded from every active-player pool --
+   * leaderboard, dashboard, live match, random team generation, and
+   * record_match's four-distinct-active-players check -- without losing
+   * their history. Only the `active` column is writable by the app; see
+   * the allow_public_player_activation migration.
+   */
+  async setActive(id: string, active: boolean): Promise<void> {
+    if (!this.supabase.client) throw new Error('Supabase is not configured');
+    const { error } = await this.supabase.client.from('players').update({ active }).eq('id', id);
+    if (error) throw error;
+  }
+
   async getById(id: string): Promise<Player | null> {
     if (!this.supabase.client) return null;
     const { data, error } = await this.supabase.client.from('players').select('*').eq('id', id).maybeSingle();
