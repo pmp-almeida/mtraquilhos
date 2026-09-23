@@ -56,5 +56,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/how-it-works/how-it-works.component').then(m => m.HowItWorksComponent),
     title: 'How ranking works · MTraquilhos'
   },
+  {
+    path: 'changelog',
+    loadComponent: () => import('./features/changelog/changelog.component').then(m => m.ChangelogComponent),
+    title: "What's new · MTraquilhos"
+  },
   { path: '**', redirectTo: '' }
 ];
