@@ -17,7 +17,7 @@
  */
 export const EN_GB = {
   // ---- App shell / navigation ----
-  'app.brand': 'Table Football Ranked',
+  'app.brand': 'MTraquilhos',
   'nav.leaderboard': 'Leaderboard',
   'nav.matches': 'Matches',
   'nav.recordMatch': 'Record match',
