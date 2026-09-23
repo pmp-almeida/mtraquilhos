@@ -45,6 +45,7 @@
 
 .toolbar-spacer {
   flex: 1;
+  min-width: 0;
 }
 
 .app-content {
@@ -54,12 +55,33 @@
 }
 
 @media (max-width: 880px) {
+  // The toolbar is a single-row, non-wrapping flex layout, and on a phone
+  // its full set of children (brand, record CTA, how-it-works, language
+  // switcher, menu trigger) doesn't fit at their desktop sizing -- that
+  // overflow is what was pushing the whole page horizontally (see the
+  // overflow-x note in styles.scss). Everything below shrinks the pieces
+  // that don't need full-size treatment once their labels are hidden,
+  // rather than just letting them overflow off-screen.
+  .app-toolbar {
+    gap: 2px;
+    padding: 0 8px;
+  }
+
+  .brand {
+    font-size: 0.95rem;
+  }
+
   .desktop-nav {
     display: none;
   }
 
   .mobile-menu-trigger {
     display: inline-flex;
+  }
+
+  .record-cta {
+    min-width: 0;
+    padding: 0 10px;
   }
 
   .record-cta-label {
