@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,6 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatchService } from '../../core/services/match.service';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
+import { RandomTeamService, TeamGenerationMode } from '../../core/services/random-team.service';
 import { teamPairKey } from '../../core/models/team-name';
 import { TeamNameService } from '../../core/services/team-name.service';
 import { RecordMatchResult } from '../../core/models/match';
@@ -45,7 +47,7 @@ const STORAGE_KEY = 'tf-live-match-v1';
   selector: 'app-live-match',
   standalone: true,
   imports: [
-    ReactiveFormsModule, MatButtonModule, MatCardModule, MatFormFieldModule, MatIconModule,
+    ReactiveFormsModule, MatButtonModule, MatButtonToggleModule, MatCardModule, MatFormFieldModule, MatIconModule,
     MatInputModule, MatSelectModule, MatSnackBarModule
   ],
   template: `
@@ -56,6 +58,30 @@ const STORAGE_KEY = 'tf-live-match-v1';
           <mat-card-subtitle>{{ i18n.t('live.setupSubtitle') }}</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
+          <div class="random-row">
+            <mat-button-toggle-group
+              class="mode-toggle"
+              [value]="randomMode()"
+              (change)="randomMode.set($event.value)"
+              [attr.aria-label]="i18n.t('teams.modeLabel')"
+            >
+              <mat-button-toggle value="random">
+                <mat-icon aria-hidden="true">casino</mat-icon>
+                {{ i18n.t('teams.modeRandom') }}
+              </mat-button-toggle>
+              <mat-button-toggle value="balanced">
+                <mat-icon aria-hidden="true">balance</mat-icon>
+                {{ i18n.t('teams.modeBalanced') }}
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+            <button mat-stroked-button type="button" [disabled]="players().length < 4" (click)="randomizeTeams()">
+              <mat-icon aria-hidden="true">shuffle</mat-icon>
+              {{ i18n.t('live.randomizeTeams') }}
+            </button>
+          </div>
+          @if (randomMode() === 'balanced') { <p class="hint">{{ i18n.t('teams.modeBalancedHint') }}</p> }
+          @if (players().length < 4) { <p class="hint">{{ i18n.t('teams.needFourPre') }}</p> }
+          <p class="tf-eyebrow divider-label">{{ i18n.t('live.orPickManually') }}</p>
           <form [formGroup]="form">
             <div class="grid">
               @for (field of playerFields; track field) {
@@ -191,6 +217,10 @@ const STORAGE_KEY = 'tf-live-match-v1';
   `,
   styles: [`
     .setup-card { max-width: 640px; margin: 0 auto; }
+    .random-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 20px 0 4px; }
+    .random-row button mat-icon { margin-right: 6px; }
+    .hint { color: var(--mat-sys-on-surface-variant); font-size: 0.8rem; margin: 4px 0; }
+    .divider-label { margin: 16px 0 4px; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
     .target-field { width: 160px; margin-top: 4px; }
     .actions { display: flex; justify-content: flex-end; margin-top: 12px; }
@@ -279,6 +309,7 @@ export class LiveMatchComponent {
   private readonly matchService = inject(MatchService);
   private readonly playerService = inject(PlayerService);
   private readonly teamNameService = inject(TeamNameService);
+  private readonly randomTeamService = inject(RandomTeamService);
   private readonly eloService = inject(EloService);
   private readonly rankService = inject(RankService);
   private readonly snackBar = inject(MatSnackBar);
@@ -301,6 +332,7 @@ export class LiveMatchComponent {
   readonly confirmingCancel = signal(false);
   readonly submitting = signal(false);
   readonly result = signal<RecordMatchResult | null>(null);
+  readonly randomMode = signal<TeamGenerationMode>('random');
 
   /**
    * Who's playing right now. This MUST be a signal, not a plain field: the
@@ -419,6 +451,19 @@ export class LiveMatchComponent {
   private teamLabelFor(idA: string, idB: string): string {
     const custom = this.teamNameMap()[teamPairKey(idA, idB)];
     return custom ?? `${this.nameOf(idA)} & ${this.nameOf(idB)}`;
+  }
+
+  /** Fills the four player selects with a fresh random (or balanced) matchup from active players -- same generator as Generate Teams, just inline so there's no page hop before Start. The player can still tweak any of the four selects afterwards. */
+  randomizeTeams(): void {
+    try {
+      const teams = this.randomTeamService.generate(this.players(), this.randomMode());
+      this.form.patchValue({
+        teamAPlayer1: teams.teamA[0].id, teamAPlayer2: teams.teamA[1].id,
+        teamBPlayer1: teams.teamB[0].id, teamBPlayer2: teams.teamB[1].id
+      });
+    } catch (error) {
+      this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('teams.generateError'), this.i18n.t('common.close'), { duration: 4000 });
+    }
   }
 
   start(): void {

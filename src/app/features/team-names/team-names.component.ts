@@ -147,9 +147,26 @@ export class TeamNamesComponent {
       this.players.set(players);
       this.teamNames.set(teamNames);
       this.names = names;
+      this.prefillFromState();
     } catch {
       this.error = this.i18n.t('teamNames.loadError');
     }
+  }
+
+  /**
+   * The "name this duo" link on Generate Teams' Best Teams list hands off
+   * its pair via router `state` (see RandomTeamsComponent.nameThisDuoState)
+   * so the player doesn't have to re-pick both players here -- mirrors
+   * LiveMatchComponent.prefillFromState's shape and validation.
+   */
+  private prefillFromState(): void {
+    const state = history.state as Partial<Record<'playerAId' | 'playerBId', string>> | null;
+    if (!state?.playerAId || !state?.playerBId || state.playerAId === state.playerBId) return;
+    const known = new Set(this.players().map(p => p.id));
+    if (!known.has(state.playerAId) || !known.has(state.playerBId)) return;
+    this.playerAId = state.playerAId;
+    this.playerBId = state.playerBId;
+    this.onPairChanged();
   }
 
   /** The already-named team for whatever pair is currently selected in the form, if any -- drives the "you're editing X" hint. Recomputed on every render, same as e.g. MatchHistoryComponent.teamNames(); cheap and always current. */

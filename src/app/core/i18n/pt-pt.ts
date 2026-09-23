@@ -171,6 +171,8 @@ export const PT_PT: Record<TranslationKey, string> = {
   'live.resumed': 'A sua partida ao vivo em curso foi retomada.',
   'live.nextChallengers': 'Vencedores ficam — novos desafiantes',
   'live.notEnoughForChain': 'É necessário pelo menos mais dois jogadores ativos para preparar um novo desafio.',
+  'live.randomizeTeams': 'Baralhar equipas',
+  'live.orPickManually': 'Ou escolha os jogadores você mesmo',
 
   // ---- Players ----
   'players.title': 'Jogadores',
@@ -256,6 +258,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   'teams.carriesEmpty': 'Ainda não há dados suficientes.',
   'teams.dynamicDuoTitle': 'Dupla dinâmica',
   'teams.together': 'juntos',
+  'teams.nameThisDuo': 'Dar nome a esta dupla',
 
   // ---- Team names ----
   'teamNames.eyebrow': 'DÊ NOME ÀS SUAS DUPLAS',

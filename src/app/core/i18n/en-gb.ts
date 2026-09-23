@@ -177,6 +177,8 @@ export const EN_GB = {
   'live.resumed': 'Resumed your in-progress live match.',
   'live.nextChallengers': 'Winners stay — new challengers',
   'live.notEnoughForChain': 'Need at least two more active players to line up a fresh challenge.',
+  'live.randomizeTeams': 'Randomize teams',
+  'live.orPickManually': 'Or pick players yourself',
 
   // ---- Players ----
   'players.title': 'Players',
@@ -262,6 +264,7 @@ export const EN_GB = {
   'teams.carriesEmpty': 'Not enough data yet.',
   'teams.dynamicDuoTitle': 'Dynamic duo',
   'teams.together': 'together',
+  'teams.nameThisDuo': 'Name this duo',
 
   // ---- Team names ----
   'teamNames.eyebrow': 'NAME YOUR DUOS',
