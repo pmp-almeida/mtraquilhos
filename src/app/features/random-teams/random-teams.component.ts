@@ -47,6 +47,17 @@ import { I18nService } from '../../core/i18n/i18n.service';
                     <span class="pair-name">{{ pairLabel(pair) }}</span>
                     <span class="pair-matches">{{ i18n.tCount(pair.matches, 'playerProfile.matchesCount') }}</span>
                     <span class="pair-rate">{{ pct(pair.winRate) }}%</span>
+                    @if (!hasCustomName(pair)) {
+                      <a
+                        class="name-link"
+                        routerLink="/team-names"
+                        [state]="nameThisDuoState(pair)"
+                        [matTooltip]="i18n.t('teams.nameThisDuo')"
+                        [attr.aria-label]="i18n.t('teams.nameThisDuo')"
+                      >
+                        <mat-icon aria-hidden="true">sell</mat-icon>
+                      </a>
+                    }
                   </div>
                 }
               }
@@ -160,6 +171,9 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .pair-name { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pair-matches { color: var(--mat-sys-on-surface-variant); font-size: 0.78rem; }
     .pair-rate { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 44px; text-align: right; }
+    .name-link { display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--mat-sys-on-surface-variant); text-decoration: none; }
+    .name-link mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .name-link:hover { color: var(--mat-sys-primary); }
     .records-hint { color: var(--mat-sys-on-surface-variant); font-size: 0.75rem; margin: 10px 0 0; }
     .fact-cards { display: flex; flex-direction: column; gap: 16px; }
     .fact-card mat-card-content { display: flex; flex-direction: column; gap: 2px; position: relative; }
@@ -234,6 +248,16 @@ export class RandomTeamsComponent {
     const custom = this.teamNameMap[teamPairKey(pair.playerLow, pair.playerHigh)];
     if (custom) return custom;
     return `${this.nameOf(pair.playerLow)} & ${this.nameOf(pair.playerHigh)}`;
+  }
+
+  /** Whether this pair already has a custom team name -- gates the small "name this duo" affordance in the Best Teams list. */
+  hasCustomName(pair: TeamPairStat): boolean {
+    return !!this.teamNameMap[teamPairKey(pair.playerLow, pair.playerHigh)];
+  }
+
+  /** Router state for the "name this duo" link, read by TeamNamesComponent.prefillFromState() to preselect this pair. */
+  nameThisDuoState(pair: TeamPairStat): Record<string, string> {
+    return { playerAId: pair.playerLow, playerBId: pair.playerHigh };
   }
 
   nameOf(id: string): string { return this.names[id] ?? this.i18n.t('common.unknownPlayer'); }
