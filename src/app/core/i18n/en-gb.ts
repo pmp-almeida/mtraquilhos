@@ -58,7 +58,7 @@ export const EN_GB = {
   'dashboard.eyebrow': 'COMPETITIVE TABLE FOOTBALL',
   'dashboard.seasonEyebrow': 'SEASON {number} · {name}',
   'dashboard.title': 'Play. Rank up. Repeat.',
-  'dashboard.subtitle': 'Track Elo, ranks, placements, and every 2v2 match — Valorant-style tiers, RR, and Demotion Shields for a friendly office ladder.',
+  'dashboard.subtitle': 'Track Ranks, stats, and every 2v2 match — Tiers, RR, and Promotions for a friendly office ladder.',
   'dashboard.liveMatch': 'Live Match',
   'dashboard.recordMatch': 'Record a match',
   'dashboard.generateTeams': 'Generate teams',

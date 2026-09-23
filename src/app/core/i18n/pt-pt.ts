@@ -52,7 +52,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   'dashboard.eyebrow': 'FUTEBOLIM COMPETITIVO',
   'dashboard.seasonEyebrow': 'ÉPOCA {number} · {name}',
   'dashboard.title': 'Joga. Sobe de rank. Repete.',
-  'dashboard.subtitle': 'Acompanha o Elo, os ranks, as partidas de colocação e cada jogo 2x2 — patamares e RR ao estilo Valorant, e Escudos de Despromoção, numa liga amigável de escritório.',
+  'dashboard.subtitle': 'Acompanha os Ranks, estatísticas e cada jogo 2x2 — patamares, RR e Promoções, numa liga amigável de escritório.',
   'dashboard.liveMatch': 'Partida ao Vivo',
   'dashboard.recordMatch': 'Registar uma partida',
   'dashboard.generateTeams': 'Gerar equipas',
