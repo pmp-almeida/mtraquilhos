@@ -7,6 +7,8 @@ import { RouterLink } from '@angular/router';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { RandomTeamService, RandomTeams } from '../../core/services/random-team.service';
+import { teamPairKey } from '../../core/models/team-name';
+import { TeamNameService } from '../../core/services/team-name.service';
 import { EloService } from '../../rank/elo.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -35,7 +37,10 @@ import { I18nService } from '../../core/i18n/i18n.service';
     @if (teams(); as t) {
       <section class="teams">
         <mat-card>
-          <mat-card-header><mat-card-title>{{ i18n.t('teams.teamA') }}</mat-card-title></mat-card-header>
+          <mat-card-header>
+            <mat-card-title>{{ i18n.t('teams.teamA') }}</mat-card-title>
+            @if (namedTeam(t.teamA); as name) { <mat-card-subtitle>{{ i18n.t('teams.assumedTeamName', { name }) }}</mat-card-subtitle> }
+          </mat-card-header>
           <mat-card-content>
             @for (p of t.teamA; track p.id) {
               <div class="player-row"><span>{{ p.displayName }}</span><app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" [compact]="true" [showRr]="false" /></div>
@@ -47,7 +52,10 @@ import { I18nService } from '../../core/i18n/i18n.service';
           <span class="prob-label">{{ i18n.t('teams.teamAWinChance') }}</span>
         </div>
         <mat-card>
-          <mat-card-header><mat-card-title>{{ i18n.t('teams.teamB') }}</mat-card-title></mat-card-header>
+          <mat-card-header>
+            <mat-card-title>{{ i18n.t('teams.teamB') }}</mat-card-title>
+            @if (namedTeam(t.teamB); as name) { <mat-card-subtitle>{{ i18n.t('teams.assumedTeamName', { name }) }}</mat-card-subtitle> }
+          </mat-card-header>
           <mat-card-content>
             @for (p of t.teamB; track p.id) {
               <div class="player-row"><span>{{ p.displayName }}</span><app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" [compact]="true" [showRr]="false" /></div>
@@ -76,18 +84,32 @@ import { I18nService } from '../../core/i18n/i18n.service';
 export class RandomTeamsComponent {
   private readonly playerService = inject(PlayerService);
   private readonly randomTeamService = inject(RandomTeamService);
+  private readonly teamNameService = inject(TeamNameService);
   private readonly eloService = inject(EloService);
   protected readonly i18n = inject(I18nService);
 
   readonly players = signal<Player[]>([]);
   readonly teams = signal<RandomTeams | null>(null);
   readonly loading = signal(true);
+  private teamNameMap: Record<string, string> = {};
   error = '';
 
   async ngOnInit(): Promise<void> {
-    try { this.players.set(await this.playerService.listActive()); }
-    catch { this.error = this.i18n.t('teams.loadError'); }
-    finally { this.loading.set(false); }
+    try {
+      const [players, teamNameMap] = await Promise.all([this.playerService.listActive(), this.teamNameService.nameMap()]);
+      this.players.set(players);
+      this.teamNameMap = teamNameMap;
+    } catch {
+      this.error = this.i18n.t('teams.loadError');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /** The custom team name for this generated pair, if one's been set -- purely a fun reveal, has no bearing on the shuffle. */
+  namedTeam(pair: Player[]): string | null {
+    if (pair.length !== 2) return null;
+    return this.teamNameMap[teamPairKey(pair[0].id, pair[1].id)] ?? null;
   }
 
   generate(): void {

@@ -12,6 +12,8 @@ import { MatchService } from '../../core/services/match.service';
 import { SeasonService } from '../../core/services/season.service';
 import { MatchSummary } from '../../core/models/match';
 import { PlayerSeasonStats } from '../../core/models/season';
+import { teamPairKey } from '../../core/models/team-name';
+import { TeamNameService } from '../../core/services/team-name.service';
 import { TeammateStatsService, TeammateStat } from '../../rank/teammate-stats.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
 import { PLACEMENT_MATCHES_REQUIRED } from '../../rank/rank.constants';
@@ -139,6 +141,7 @@ export class PlayerProfileComponent {
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
   private readonly teammateStatsService = inject(TeammateStatsService);
+  private readonly teamNameService = inject(TeamNameService);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly i18n = inject(I18nService);
 
@@ -148,6 +151,7 @@ export class PlayerProfileComponent {
   readonly names = signal<Record<string, string>>({});
   readonly loading = signal(true);
   readonly toggling = signal(false);
+  private teamNameMap: Record<string, string> = {};
   readonly placementRequired = PLACEMENT_MATCHES_REQUIRED;
   error = '';
   private playerId = '';
@@ -192,17 +196,19 @@ export class PlayerProfileComponent {
     this.playerId = this.route.snapshot.paramMap.get('id') ?? '';
     if (!this.playerId) { this.error = this.i18n.t('playerProfile.noPlayerSpecified'); this.loading.set(false); return; }
     try {
-      const [player, matches, names, seasonHistory] = await Promise.all([
+      const [player, matches, names, seasonHistory, teamNameMap] = await Promise.all([
         this.playerService.getById(this.playerId),
         this.matchService.listForPlayer(this.playerId),
         this.playerService.nameMap(),
-        this.seasonService.historyForPlayer(this.playerId)
+        this.seasonService.historyForPlayer(this.playerId),
+        this.teamNameService.nameMap()
       ]);
       if (!player) { this.error = this.i18n.t('playerProfile.notFound'); return; }
       this.player.set(player);
       this.matches.set(matches);
       this.names.set(names);
       this.seasonHistory.set(seasonHistory);
+      this.teamNameMap = teamNameMap;
     } catch {
       this.error = this.i18n.t('playerProfile.loadError');
     } finally {
@@ -245,6 +251,8 @@ export class PlayerProfileComponent {
   opponentNames(match: MatchSummary): string {
     const onTeamA = match.teamAPlayerIds.includes(this.playerId);
     const opponents = onTeamA ? match.teamBPlayerIds : match.teamAPlayerIds;
+    const custom = this.teamNameMap[teamPairKey(opponents[0], opponents[1])];
+    if (custom) return custom;
     return opponents.map(id => this.nameOf(id)).join(' & ');
   }
 }

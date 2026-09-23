@@ -10,6 +10,8 @@ import { MatchService } from '../../core/services/match.service';
 import { SeasonService } from '../../core/services/season.service';
 import { Season } from '../../core/models/season';
 import { MatchSummary } from '../../core/models/match';
+import { teamPairKey } from '../../core/models/team-name';
+import { TeamNameService } from '../../core/services/team-name.service';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 
@@ -116,6 +118,7 @@ export class DashboardComponent {
   private readonly playerService = inject(PlayerService);
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
+  private readonly teamNameService = inject(TeamNameService);
   protected readonly i18n = inject(I18nService);
 
   readonly players = signal<Player[]>([]);
@@ -123,6 +126,7 @@ export class DashboardComponent {
   readonly matchCount = signal(0);
   readonly activeSeason = signal<Season | null>(null);
   private playerNames: Record<string, string> = {};
+  private teamNameMap: Record<string, string> = {};
   error = '';
 
   readonly topByElo = computed(() => this.players().slice().sort((a, b) => b.elo - a.elo)[0] ?? null);
@@ -139,24 +143,28 @@ export class DashboardComponent {
 
   async ngOnInit(): Promise<void> {
     try {
-      const [players, matches, matchCount, activeSeason, playerNames] = await Promise.all([
+      const [players, matches, matchCount, activeSeason, playerNames, teamNameMap] = await Promise.all([
         this.playerService.listActive(),
         this.matchService.listRecent(5),
         this.matchService.countAll(),
         this.seasonService.getActive(),
-        this.playerService.nameMap()
+        this.playerService.nameMap(),
+        this.teamNameService.nameMap()
       ]);
       this.players.set(players);
       this.matches.set(matches);
       this.matchCount.set(matchCount);
       this.activeSeason.set(activeSeason);
       this.playerNames = playerNames;
+      this.teamNameMap = teamNameMap;
     } catch {
       this.error = this.i18n.t('dashboard.loadError');
     }
   }
 
   teamNames(ids: [string, string]): string {
+    const custom = this.teamNameMap[teamPairKey(ids[0], ids[1])];
+    if (custom) return custom;
     return ids.map(id => this.playerNames[id] ?? this.i18n.t('common.unknownPlayer')).join(' & ');
   }
 }
