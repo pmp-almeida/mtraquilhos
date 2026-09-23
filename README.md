@@ -1,31 +1,139 @@
-# TableFootballRankedApp
+# MTraquilhos
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.24.
+Table Football Ranked ("MTraquilhos") is a ranked-ladder tracker for
+friendly 2v2 table-football matches. It runs Elo ratings, placement
+matches, competitive tiers with automatic promotion/demotion, and a
+one-use Demotion Shield, then layers on leaderboards, per-player
+statistics, club-wide "records," a live scoreboard, and a random/balanced
+team generator -- all in a bilingual, installable, light/dark-themed web
+app with no sign-up.
 
 ## Purpose
 
-Table Football Ranked is an internal recreational tool for the Multicert mTrust
-development team. It remains a standalone application: it does not integrate
-with mTrust services, repositories, authentication, or production data.
+This is an internal recreational tool for the Multicert mTrust
+development team. It remains a standalone application: it does not
+integrate with mTrust services, repositories, authentication, or
+production data.
 
-The Angular frontend is hosted as a static site and uses Supabase for the
-application database and authoritative match processing. See
+The Angular frontend is hosted as a static site (GitHub Pages) and uses
+Supabase for the application database and authoritative match
+processing -- all rating math happens server-side in `SECURITY DEFINER`
+Postgres functions, never trusted from the browser. There is no
+authentication or per-user identity; see "No-auth model" below and
 `docs/no-auth-deployment.md` and `docs/git-and-supabase-setup.md` before
 sharing or deploying an instance.
 
 ## Feature overview
 
-- Elo-based ranking (9 tiers, Iron-III divisions) with 5 placement matches per player.
-- A one-use **Demotion Shield** protects every rank from an immediate drop the moment
-  a player hits the floor of their current rank, Champion included -- see
-  `table-football-ranked-app-spec-v2.md` section 18-20 for the exact rules.
-- Optional **Seasons**: a Valorant-Act-style soft reset that compresses Elo toward the
-  group average instead of wiping it. Started from the Seasons page; see section 48.
-- A lightweight **shared-passphrase gate** (not authentication -- see section 49) that
-  can optionally sit in front of the app.
-- Random team generator, a full player profile (rank, streaks, teammate stats, season
-  history), and a record-match flow with a projected-outcome preview and a post-match
-  result summary.
+**Ranking**
+- Individual Elo ratings with 10 placement matches before a player's
+  first rank is revealed.
+- Nine named tiers -- Lixo, Iron, Bronze, Silver, Gold, Platinum,
+  Diamond, Emerald, Champion -- with Iron through Emerald split into
+  I/II/III divisions and a 0-99 RR progression within each.
+- Automatic rank-ups and demotions driven purely by Elo crossing a
+  division floor.
+- A one-use **Demotion Shield** that protects every rank without
+  exception (Champion included) the instant a player would otherwise
+  drop, resolved by the result of their very next match. See
+  `table-football-ranked-app-spec-v2.md` for the exact rules.
+- Optional **Seasons**: a Valorant-Act-style soft reset that compresses
+  every active player's Elo toward the group average instead of wiping
+  it, without touching lifetime stats or match history.
+
+**Playing and recording matches**
+- **Live Match**: score a match live from one shared device at the
+  table, with a running scoreboard, a live-projected Elo/rank change,
+  and a "winners stay" flow to line up the next challengers instantly.
+  In-progress matches survive an accidental refresh or a locked screen.
+  The setup screen can generate a random or balanced 2v2 matchup inline
+  (see Team generation below) instead of picking all four players by
+  hand.
+- **Record Match**: a non-live flow for entering a final score after the
+  fact, with the same projected-outcome preview and a post-match result
+  summary. Recorded matches can be rewound/undone.
+- **Team generation** (`/teams`): split active players into two 2v2
+  teams, either purely at random or in **balanced mode**, which keeps
+  the same four players but pairs them to minimize the Elo gap between
+  the two teams. One tap sends the result straight into Live Match or
+  Record Match.
+- **Club records**: a small leaderboard of the best-performing pairs by
+  win rate, a "Dynamic Duo" (most-played-together pair), and "The One
+  Who Carries" -- the player whose regular partners consistently win
+  more often with them on their team than without.
+- **Custom team names** (`/team-names`): give any pair of players a
+  persistent, cosmetic nickname. It shows up everywhere that exact pair
+  appears together (match history, dashboard, live match, generated
+  teams, a player's own match list) and can be assigned directly from
+  the Club records leaderboard via a one-tap "name this duo" link.
+
+**Players and stats**
+- Player management: create, rename, and activate/deactivate players
+  (inactive players are excluded from team generation but keep their
+  history and stats).
+- Leaderboard and full match history.
+- Player profiles: current rank and RR, win/loss record, current and
+  longest win streaks, peak Elo, season history, Best/Worst Teammate,
+  and Head-to-head records against specific opponents.
+
+**App experience**
+- Bilingual UI -- English (en-GB) and European Portuguese (pt-PT),
+  switchable at runtime with no rebuild.
+- Light and dark theme, switchable at runtime, defaulting to the
+  system's preference.
+- Installable as a **PWA** (Add to Home Screen / desktop install) with
+  an offline-capable app shell.
+- An in-app **"How ranking works"** page (plain-language explainer and
+  glossary of every term) and a **"What's new"** changelog page
+  reconstructing the full release history.
+- An optional lightweight **shared-passphrase gate** (not authentication
+  -- see `docs/no-auth-deployment.md`) that can sit in front of a public
+  deployment.
+- No sign-up or accounts -- open the link, pick your name, and start
+  playing.
+
+## Tech stack
+
+- **Angular 21** -- standalone components, signals, and the
+  `@angular/build` (esbuild/Vite) application builder.
+- **Angular Material 3** for UI components and theming.
+- **Supabase** (Postgres + RPC) as the backend: schema and
+  `SECURITY DEFINER` functions live under `supabase/migrations/`.
+- **Vitest**, via the Angular CLI's `@angular/build:unit-test` builder,
+  for unit tests.
+- **Angular Service Worker** for the PWA/offline shell.
+- Deployed statically to **GitHub Pages** by a GitHub Actions workflow
+  (`.github/workflows/deploy-pages.yml`) on every push to `main`.
+
+## Project structure
+
+```
+src/app/
+  core/           Services, models, i18n (EN/PT translation dictionaries),
+                   the changelog data, and the passphrase gate.
+  rank/            Elo, rank, and statistics calculations (rank/RR
+                   thresholds, teammate/head-to-head/team stats), plus
+                   their unit tests -- this is the pure "ranking engine".
+  features/        One folder per routed page: dashboard, leaderboard,
+                   matches (history + record), live-match, players,
+                   random-teams, team-names, seasons, how-it-works,
+                   changelog.
+  shared/          Reusable presentational components (rank badge, theme
+                   toggle, install button, language switcher, passphrase
+                   gate UI).
+supabase/migrations/   The Postgres schema and RPCs, applied in order.
+docs/                  Deployment and Supabase setup guides.
+table-football-ranked-app-spec-v2.md   The full product/rules spec.
+```
+
+## No-auth model
+
+There are no accounts, roles, or private data. Anyone with the app URL
+can submit a match through the public `record_match` RPC; the optional
+passphrase gate (see above) only hides the app's existence from casual
+visitors, it does not add real authorization. Do not put anything
+sensitive behind this deployment. Full detail in
+`docs/no-auth-deployment.md`.
 
 ## Environment variables
 
@@ -60,58 +168,73 @@ commit that. If you'd rather git stopped showing it as changed at all, run
 with `--no-skip-worktree` if you ever need to pull in a real change to that
 file).
 
-## Development server
+## Getting started
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4545/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Prerequisites: Node 22+ and npm 10+ (matching the deploy workflow).
 
 ```bash
-ng generate component component-name
+npm ci                     # install dependencies
+npm run env:local          # generate environment.ts from .env (see above)
+ng serve                   # start the dev server
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
+The dev server defaults to `http://localhost:4200/` and reloads
+automatically as you edit source files.
 
 ## Building
-
-To build the project run:
 
 ```bash
 ng build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Compiles the project and writes build artifacts to `dist/`. The
+production configuration (the default) optimizes for size and speed and
+registers the service worker; `ng build --configuration development` skips
+optimization for faster, more debuggable local builds.
 
 ## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
 
 ```bash
 ng test
 ```
 
-## Running end-to-end tests
+Runs the unit test suite (rank/Elo math, team and head-to-head stats,
+etc.) with Vitest via the Angular CLI's unit-test builder. There is no
+end-to-end test setup in this project.
 
-For end-to-end (e2e) testing, run:
+## Deployment
 
-```bash
-ng e2e
-```
+Every push to `main` triggers `.github/workflows/deploy-pages.yml`, which
+installs dependencies, writes `environment.production.ts` from the repo's
+GitHub Actions secrets (hashing `ACCESS_PASSPHRASE` if set), builds with
+`ng build --configuration production --base-href "/<repo-name>/"`, and
+publishes the result to GitHub Pages. See `docs/git-and-supabase-setup.md`
+for the one-time repository and Supabase project setup this depends on.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Database
 
-## Additional Resources
+`supabase/migrations/` is the source of truth for the Postgres schema and
+the `SECURITY DEFINER` RPCs the app calls (`record_match`, `start_season`,
+and the rest) -- apply them in filename order against a fresh Supabase
+project. They also carry the project's rule history as it evolved: the
+Demotion Shield being extended to every rank, placement matches being
+raised from 5 to 10, match rewind, player activation, and custom team
+names all landed as migrations here, not just as frontend changes.
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Documentation
+
+- `table-football-ranked-app-spec-v2.md` -- the full product spec: every
+  ranking rule, formula, and dated addendum as the app evolved.
+- `docs/no-auth-deployment.md` -- the no-auth model and the passphrase
+  gate, in detail.
+- `docs/git-and-supabase-setup.md` -- one-time setup for a new clone:
+  GitHub secrets, the Supabase project, and applying migrations.
+- In the app itself: **How ranking works** (`/how-it-works`) explains
+  every rank/Elo/RR concept in plain language for players, and
+  **What's new** (`/changelog`) lists what changed in each release.
+
+## Additional resources
+
+This project was generated with the [Angular CLI](https://github.com/angular/angular-cli).
+For more on the CLI itself, see the
+[Angular CLI Overview and Command Reference](https://angular.dev/tools/cli).
