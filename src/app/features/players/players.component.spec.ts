@@ -4,11 +4,11 @@ import { PlayerService } from '../../core/services/player.service';
 
 describe('PlayersComponent', () => {
   let fixture: ComponentFixture<PlayersComponent>;
-  let playerService: { listActive: () => Promise<never[]>; create: () => Promise<never> };
+  let playerService: { listAll: () => Promise<never[]>; create: () => Promise<never> };
 
   beforeEach(async () => {
     playerService = {
-      listActive: () => Promise.resolve([]),
+      listAll: () => Promise.resolve([]),
       create: () => Promise.reject(new Error('Player could not be created.'))
     };
 

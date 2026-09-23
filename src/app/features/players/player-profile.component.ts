@@ -1,9 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { MatchService } from '../../core/services/match.service';
@@ -18,7 +20,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 @Component({
   selector: 'app-player-profile',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatCardModule, MatIconModule, MatProgressBarModule, RankBadgeComponent],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatCardModule, MatIconModule, MatProgressBarModule, MatSnackBarModule, RankBadgeComponent],
   template: `
     @if (loading()) {
       <p class="tf-empty">{{ i18n.t('playerProfile.loading') }}</p>
@@ -28,9 +30,16 @@ import { I18nService } from '../../core/i18n/i18n.service';
       <section class="header">
         <div>
           <p class="tf-eyebrow">{{ i18n.t('playerProfile.eyebrow') }}</p>
-          <h1>{{ p.displayName }}</h1>
+          <h1>
+            {{ p.displayName }}
+            @if (!p.isActive) { <span class="inactive-badge">{{ i18n.t('playerProfile.inactiveBadge') }}</span> }
+          </h1>
           <app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" />
         </div>
+        <button mat-stroked-button [disabled]="toggling()" (click)="toggleActive(p)">
+          <mat-icon aria-hidden="true">{{ p.isActive ? 'pause_circle' : 'play_circle' }}</mat-icon>
+          {{ p.isActive ? i18n.t('players.deactivate') : i18n.t('players.activate') }}
+        </button>
       </section>
 
       <section class="progress-block">
@@ -107,7 +116,8 @@ import { I18nService } from '../../core/i18n/i18n.service';
   styles: [`
     :host { display: block; }
     .header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
-    h1 { margin: 4px 0 10px; }
+    h1 { margin: 4px 0 10px; display: flex; align-items: center; gap: 10px; }
+    .inactive-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; background: var(--mat-sys-surface-variant); color: var(--mat-sys-on-surface-variant); vertical-align: middle; }
     .progress-block { margin-bottom: 20px; }
     .progress-header { margin-bottom: 6px; font-size: 0.85rem; color: var(--mat-sys-on-surface-variant); font-weight: 600; }
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
@@ -129,6 +139,7 @@ export class PlayerProfileComponent {
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
   private readonly teammateStatsService = inject(TeammateStatsService);
+  private readonly snackBar = inject(MatSnackBar);
   protected readonly i18n = inject(I18nService);
 
   readonly player = signal<Player | null>(null);
@@ -136,6 +147,7 @@ export class PlayerProfileComponent {
   readonly seasonHistory = signal<PlayerSeasonStats[]>([]);
   readonly names = signal<Record<string, string>>({});
   readonly loading = signal(true);
+  readonly toggling = signal(false);
   readonly placementRequired = PLACEMENT_MATCHES_REQUIRED;
   error = '';
   private playerId = '';
@@ -195,6 +207,26 @@ export class PlayerProfileComponent {
       this.error = this.i18n.t('playerProfile.loadError');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** Toggles this player between active and inactive; see PlayersComponent.toggleActive for what this affects app-wide. */
+  async toggleActive(player: Player): Promise<void> {
+    if (this.toggling()) return;
+    this.toggling.set(true);
+    const next = !player.isActive;
+    try {
+      await this.playerService.setActive(player.id, next);
+      this.player.set({ ...player, isActive: next });
+      this.snackBar.open(
+        this.i18n.t(next ? 'players.activateSuccess' : 'players.deactivateSuccess', { name: player.displayName }),
+        this.i18n.t('common.close'),
+        { duration: 4000 }
+      );
+    } catch (error) {
+      this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('players.toggleError'), this.i18n.t('common.close'), { duration: 5000 });
+    } finally {
+      this.toggling.set(false);
     }
   }
 
