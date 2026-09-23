@@ -42,6 +42,21 @@ export class MatchService {
     };
   }
 
+  /**
+   * Reverts a recorded match: every one of its four players' Elo, rank, RR,
+   * placement count, and Demotion Shield state go back to exactly what they
+   * were before this match, and the match/its rating history are deleted.
+   * Only works while this is still the most recent recorded match for all
+   * four players -- see the rewind_match migration for why. If a later
+   * match already exists for one of them, the RPC raises and this rejects
+   * with that message so the caller can surface it as-is.
+   */
+  async rewind(matchId: string): Promise<void> {
+    if (!this.supabase.client) throw new Error('Supabase is not configured');
+    const { error } = await this.supabase.client.rpc('rewind_match', { p_match_id: matchId });
+    if (error) throw error;
+  }
+
   async listRecent(limit = 20): Promise<MatchSummary[]> {
     if (!this.supabase.client) return [];
     const { data, error } = await this.supabase.client.from('matches')

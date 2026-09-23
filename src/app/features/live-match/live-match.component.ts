@@ -127,6 +127,12 @@ const STORAGE_KEY = 'tf-live-match-v1';
                 }
               </mat-card-content>
               <mat-card-actions align="end">
+                @if (canChainMatch()) {
+                  <button mat-stroked-button (click)="startWithNewOpponents()">
+                    <mat-icon aria-hidden="true">swap_horiz</mat-icon>
+                    {{ i18n.t('live.nextChallengers') }}
+                  </button>
+                }
                 <button mat-flat-button color="primary" (click)="startAnother()">
                   <mat-icon aria-hidden="true">bolt</mat-icon>
                   {{ i18n.t('live.startAnother') }}
@@ -292,7 +298,19 @@ export class LiveMatchComponent {
   readonly submitting = signal(false);
   readonly result = signal<RecordMatchResult | null>(null);
 
-  private ids: { a1: string; a2: string; b1: string; b2: string } = { a1: '', a2: '', b1: '', b2: '' };
+  /**
+   * Who's playing right now. This MUST be a signal, not a plain field: the
+   * computed()s below (teamAName1..teamBName2, finishProjection) read it, and
+   * a computed() only re-evaluates when a signal it read actually changes --
+   * reading a plain object's properties inside a computed does not register
+   * as a dependency. With a plain field here, start()/startAnother() calls
+   * after the very first match update the object but the already-memoized
+   * computed()s never noticed and kept showing the first match's players for
+   * the rest of the component's lifetime, no matter what was picked in the
+   * form -- the real cause of a run of live matches all getting attributed
+   * to the original four players regardless of the new selection.
+   */
+  private readonly idsSignal = signal<{ a1: string; a2: string; b1: string; b2: string }>({ a1: '', a2: '', b1: '', b2: '' });
   readonly targetScore = signal(5);
   readonly scoreA = signal(0);
   readonly scoreB = signal(0);
@@ -314,7 +332,8 @@ export class LiveMatchComponent {
   readonly finishProjection = computed(() => {
     if (!this.showFinishPrompt()) return null;
     const byId = (id: string) => this.players().find(p => p.id === id);
-    const a1 = byId(this.ids.a1), a2 = byId(this.ids.a2), b1 = byId(this.ids.b1), b2 = byId(this.ids.b2);
+    const ids = this.idsSignal();
+    const a1 = byId(ids.a1), a2 = byId(ids.a2), b1 = byId(ids.b1), b2 = byId(ids.b2);
     if (!a1 || !a2 || !b1 || !b2) return null;
     const winner = this.leadingTeam() as 'A' | 'B';
     const proj = this.eloService.project([a1.elo, a2.elo], [b1.elo, b2.elo], winner);
@@ -338,10 +357,13 @@ export class LiveMatchComponent {
     ];
   });
 
-  readonly teamAName1 = computed(() => this.nameOf(this.ids.a1));
-  readonly teamAName2 = computed(() => this.nameOf(this.ids.a2));
-  readonly teamBName1 = computed(() => this.nameOf(this.ids.b1));
-  readonly teamBName2 = computed(() => this.nameOf(this.ids.b2));
+  readonly teamAName1 = computed(() => this.nameOf(this.idsSignal().a1));
+  readonly teamAName2 = computed(() => this.nameOf(this.idsSignal().a2));
+  readonly teamBName1 = computed(() => this.nameOf(this.idsSignal().b1));
+  readonly teamBName2 = computed(() => this.nameOf(this.idsSignal().b2));
+
+  /** "Winners stay" needs at least two active players besides the four who just played. */
+  readonly canChainMatch = computed(() => this.players().length >= 6);
 
   async ngOnInit(): Promise<void> {
     try {
@@ -388,7 +410,7 @@ export class LiveMatchComponent {
     const value = this.form.getRawValue();
     const ids = [value.teamAPlayer1, value.teamAPlayer2, value.teamBPlayer1, value.teamBPlayer2];
     if (new Set(ids).size !== 4) { this.snackBar.open(this.i18n.t('live.selectFourDistinct'), this.i18n.t('common.close'), { duration: 3000 }); return; }
-    this.ids = { a1: value.teamAPlayer1, a2: value.teamAPlayer2, b1: value.teamBPlayer1, b2: value.teamBPlayer2 };
+    this.idsSignal.set({ a1: value.teamAPlayer1, a2: value.teamAPlayer2, b1: value.teamBPlayer1, b2: value.teamBPlayer2 });
     this.targetScore.set(value.targetScore);
     this.scoreA.set(0);
     this.scoreB.set(0);
@@ -429,9 +451,10 @@ export class LiveMatchComponent {
     this.submitting.set(true);
     try {
       const winner = this.leadingTeam() as 'A' | 'B';
+      const ids = this.idsSignal();
       const recorded = await this.matchService.record({
-        teamAPlayer1: this.ids.a1, teamAPlayer2: this.ids.a2,
-        teamBPlayer1: this.ids.b1, teamBPlayer2: this.ids.b2,
+        teamAPlayer1: ids.a1, teamAPlayer2: ids.a2,
+        teamBPlayer1: ids.b1, teamBPlayer2: ids.b2,
         winner, scoreA: this.scoreA(), scoreB: this.scoreB(), note: 'Recorded via Live Mode'
       });
       this.result.set(recorded);
@@ -451,15 +474,51 @@ export class LiveMatchComponent {
 
   startAnother(): void {
     this.result.set(null);
+    this.idsSignal.set({ a1: '', a2: '', b1: '', b2: '' });
     this.form.reset({ targetScore: 5 });
     this.phase.set('setup');
   }
 
+  /**
+   * "Winners stay": keeps the team that just won in place and draws a fresh
+   * opposing pair at random from whoever's active and wasn't just involved
+   * in the match that finished -- so it's guaranteed to be a different
+   * matchup than the one that just ended, not a rerun of the same losing
+   * team. Skips the setup screen entirely and drops straight into a new
+   * live match, same target score as before.
+   */
+  startWithNewOpponents(): void {
+    const res = this.result();
+    if (!res || !this.canChainMatch()) return;
+    const ids = this.idsSignal();
+    const winningIsA = res.teamDelta >= 0;
+    const winners = winningIsA ? [ids.a1, ids.a2] : [ids.b1, ids.b2];
+    const losers = winningIsA ? [ids.b1, ids.b2] : [ids.a1, ids.a2];
+    const taken = new Set([...winners, ...losers]);
+    const fresh = this.players().filter(p => !taken.has(p.id));
+    if (fresh.length < 2) {
+      this.snackBar.open(this.i18n.t('live.notEnoughForChain'), this.i18n.t('common.close'), { duration: 4000 });
+      return;
+    }
+    const [challenger1, challenger2] = [...fresh].sort(() => Math.random() - 0.5);
+    this.idsSignal.set({ a1: winners[0], a2: winners[1], b1: challenger1.id, b2: challenger2.id });
+    this.scoreA.set(0);
+    this.scoreB.set(0);
+    this.history.set([]);
+    this.dismissedForScore = null;
+    this.startedAt = new Date().toISOString();
+    this.result.set(null);
+    this.confirmingCancel.set(false);
+    this.phase.set('live');
+    this.persist();
+  }
+
   private persist(): void {
     if (this.phase() !== 'live' || this.result()) return;
+    const ids = this.idsSignal();
     const payload: PersistedLiveMatch = {
-      teamAPlayer1: this.ids.a1, teamAPlayer2: this.ids.a2,
-      teamBPlayer1: this.ids.b1, teamBPlayer2: this.ids.b2,
+      teamAPlayer1: ids.a1, teamAPlayer2: ids.a2,
+      teamBPlayer1: ids.b1, teamBPlayer2: ids.b2,
       targetScore: this.targetScore(), scoreA: this.scoreA(), scoreB: this.scoreB(),
       history: this.history(), startedAt: this.startedAt
     };
@@ -485,7 +544,7 @@ export class LiveMatchComponent {
       return;
     }
 
-    this.ids = { a1: saved.teamAPlayer1, a2: saved.teamAPlayer2, b1: saved.teamBPlayer1, b2: saved.teamBPlayer2 };
+    this.idsSignal.set({ a1: saved.teamAPlayer1, a2: saved.teamAPlayer2, b1: saved.teamBPlayer1, b2: saved.teamBPlayer2 });
     this.targetScore.set(saved.targetScore);
     this.scoreA.set(saved.scoreA);
     this.scoreB.set(saved.scoreB);

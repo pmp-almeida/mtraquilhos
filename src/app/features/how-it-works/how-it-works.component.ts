@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { RouterLink } from '@angular/router';
 import { RankBadgeComponent } from '../../shared/components/rank-badge/rank-badge.component';
 import { RankState } from '../../core/models/rank-state';
 import { RankService } from '../../rank/rank.service';
@@ -29,25 +30,48 @@ interface TierRow {
  * with what record_match actually does (the same discipline the spec
  * document itself follows -- see rank.constants.ts as the single source of
  * truth for every number quoted here).
+ *
+ * The in-page jump links use `routerLink="/how-it-works" [fragment]` rather
+ * than a plain `href="/how-it-works#elo"`. A hardcoded absolute path like
+ * that is resolved against the document's <base href>, which in production
+ * is "/mtraquilhos/" (see the GitHub Pages deploy workflow's --base-href
+ * flag) -- so "/how-it-works#elo" actually pointed at
+ * "https://<user>.github.io/how-it-works", missing the repo segment
+ * entirely: a 404 in production even though it looked fine in local dev.
+ * Swapping in a bare `href="#elo"` doesn't fix it either -- a fragment-only
+ * href is ALSO resolved against <base href>, not the current page's own
+ * path, so clicking it would jump to "/mtraquilhos/#elo" (the dashboard
+ * route) instead of staying put and scrolling. `routerLink` is base-href
+ * aware, so the rendered href (and a plain new-tab/right-click open) is
+ * always correct. A plain left click is then intercepted by `jumpTo()`,
+ * which scrolls the target section into view directly and updates the URL
+ * itself, instead of letting the click fall through to the Router: the
+ * Router's own anchor scrolling (`withInMemoryScrolling` in app.config.ts,
+ * still enabled for the fresh-page-load/deep-link case) turned out, when
+ * verified by driving a real browser against a built copy of the app, to
+ * race its own scroll-position-restoration and reset the scroll straight
+ * back to the top for this same-route, fragment-only kind of navigation. A
+ * modified click (ctrl/cmd/shift/middle-button) is left alone so "open in
+ * new tab" still uses routerLink's own href normally.
  */
 @Component({
   selector: 'app-how-it-works',
   standalone: true,
-  imports: [MatCardModule, MatIconModule, RankBadgeComponent],
+  imports: [MatCardModule, MatIconModule, RouterLink, RankBadgeComponent],
   template: `
     <section class="heading">
       <p class="tf-eyebrow">{{ i18n.t('howItWorks.eyebrow') }}</p>
       <h1>{{ i18n.t('howItWorks.title') }}</h1>
       <p>{{ i18n.t('howItWorks.intro') }}</p>
       <nav class="jump-links" aria-label="Jump to section">
-        <a href="/how-it-works#elo">{{ i18n.t('howItWorks.jumpElo') }}</a>
-        <a href="/how-it-works#placements">{{ i18n.t('howItWorks.jumpPlacements') }}</a>
-        <a href="/how-it-works#tiers">{{ i18n.t('howItWorks.jumpTiers') }}</a>
-        <a href="/how-it-works#rr">{{ i18n.t('howItWorks.jumpRr') }}</a>
-        <a href="/how-it-works#rankups">{{ i18n.t('howItWorks.jumpRankups') }}</a>
-        <a href="/how-it-works#shield">{{ i18n.t('howItWorks.jumpShield') }}</a>
-        <a href="/how-it-works#special">{{ i18n.t('howItWorks.jumpSpecial') }}</a>
-        <a href="/how-it-works#glossary">{{ i18n.t('howItWorks.jumpGlossary') }}</a>
+        <a routerLink="/how-it-works" fragment="elo" (click)="jumpTo($event, 'elo')">{{ i18n.t('howItWorks.jumpElo') }}</a>
+        <a routerLink="/how-it-works" fragment="placements" (click)="jumpTo($event, 'placements')">{{ i18n.t('howItWorks.jumpPlacements') }}</a>
+        <a routerLink="/how-it-works" fragment="tiers" (click)="jumpTo($event, 'tiers')">{{ i18n.t('howItWorks.jumpTiers') }}</a>
+        <a routerLink="/how-it-works" fragment="rr" (click)="jumpTo($event, 'rr')">{{ i18n.t('howItWorks.jumpRr') }}</a>
+        <a routerLink="/how-it-works" fragment="rankups" (click)="jumpTo($event, 'rankups')">{{ i18n.t('howItWorks.jumpRankups') }}</a>
+        <a routerLink="/how-it-works" fragment="shield" (click)="jumpTo($event, 'shield')">{{ i18n.t('howItWorks.jumpShield') }}</a>
+        <a routerLink="/how-it-works" fragment="special" (click)="jumpTo($event, 'special')">{{ i18n.t('howItWorks.jumpSpecial') }}</a>
+        <a routerLink="/how-it-works" fragment="glossary" (click)="jumpTo($event, 'glossary')">{{ i18n.t('howItWorks.jumpGlossary') }}</a>
       </nav>
     </section>
 
@@ -237,6 +261,19 @@ export class HowItWorksComponent {
   readonly placementMatchesRequired = PLACEMENT_MATCHES_REQUIRED;
   readonly divisionWidth = DIVISION_WIDTH;
   readonly championFloor = CHAMPION_FLOOR;
+
+  /**
+   * See the class doc comment above for why this exists alongside
+   * routerLink. Only takes over a plain left click -- a modified click
+   * (ctrl/cmd/shift/middle-button, "open in new tab") is left alone so it
+   * still opens routerLink's own correctly-computed href normally.
+   */
+  jumpTo(event: MouseEvent, id: string): void {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    history.pushState(null, '', `${location.pathname}#${id}`);
+  }
 
   readonly eloExample = computed(() => this.eloService.project([500, 540], [580, 620], 'A'));
 

@@ -95,10 +95,16 @@ export const PT_PT: Record<TranslationKey, string> = {
   // ---- Match history ----
   'matchHistory.eyebrow': 'RESULTADOS RECENTES',
   'matchHistory.title': 'Histórico de partidas',
-  'matchHistory.subtitle': 'As partidas concluídas são imutáveis e processadas pelo RPC do Supabase.',
+  'matchHistory.subtitle': 'Cada partida é processada pelo RPC do Supabase. Um erro pode ser desfeito com Reverter, que repõe a classificação de cada jogador tal como estava antes dessa partida.',
   'matchHistory.loadError': 'Não foi possível carregar o histórico de partidas. Verifique a configuração do Supabase.',
   'matchHistory.noMatches': 'Ainda não há partidas registadas.',
   'matchHistory.scoreNotRecorded': 'Resultado não registado',
+  'matchHistory.rewindAria': 'Reverter esta partida',
+  'matchHistory.rewindPrompt': 'Reverter esta partida? As alterações de Elo, rank e RR para os quatro jogadores serão desfeitas e a partida removida do histórico.',
+  'matchHistory.rewindConfirm': 'Reverter',
+  'matchHistory.rewinding': 'A reverter…',
+  'matchHistory.rewindSuccess': 'Partida revertida — a classificação foi reposta tal como estava antes.',
+  'matchHistory.rewindError': 'Não foi possível reverter esta partida.',
 
   // ---- Record match ----
   'recordMatch.recordedTitle': 'Partida registada',
@@ -157,6 +163,8 @@ export const PT_PT: Record<TranslationKey, string> = {
   'live.recordError': 'Não foi possível registar a partida.',
   'live.discardedInactivePlayer': 'A sua partida ao vivo em curso envolvia um jogador que já não está ativo, por isso foi descartada.',
   'live.resumed': 'A sua partida ao vivo em curso foi retomada.',
+  'live.nextChallengers': 'Vencedores ficam — novos desafiantes',
+  'live.notEnoughForChain': 'É necessário pelo menos mais dois jogadores ativos para preparar um novo desafio.',
 
   // ---- Players ----
   'players.title': 'Jogadores',
@@ -285,7 +293,7 @@ export const PT_PT: Record<TranslationKey, string> = {
 
   'howItWorks.shieldSectionTitle': 'O Escudo de Despromoção',
   'howItWorks.shieldP1': 'Cada jogador classificado recebe um Escudo de Despromoção de utilização única. Protege o seu rank visível, não o seu Elo — o seu Elo subjacente continua sempre a mover-se normalmente em cada partida, vencendo ou perdendo, com ou sem escudo.',
-  'howItWorks.shieldP2': 'O escudo ativa-se automaticamente no momento em que uma partida o faria sair do seu rank atual — ou seja, o seu RR está em 0 e está prestes a descer de divisão (ou, no caso de Champion, o seu Elo está prestes a cair novamente abaixo de {championFloor}). Em vez de o despromover imediatamente, a aplicação mantém o seu rank e RR congelados exatamente onde estavam e marca a partida seguinte como uma partida de despromoção:',
+  'howItWorks.shieldP2': 'O escudo ativa-se automaticamente na primeira vez que uma derrota o faria sair do seu rank atual — quer tenha descido gradualmente até à base da divisão primeiro, quer uma única derrota surpreendente o leve diretamente para além dela numa só partida (ou, no caso de Champion, o seu Elo cai novamente abaixo de {championFloor}). Em vez de o despromover imediatamente, a aplicação mantém o seu rank e RR congelados exatamente onde estavam e marca a partida seguinte como uma partida de despromoção:',
   'howItWorks.shieldWin': 'Vencê-la — mantém o seu rank protegido, e o escudo é consumido.',
   'howItWorks.shieldLose': 'Perdê-la — desce para onde o seu Elo agora indicar, e o escudo é consumido.',
   'howItWorks.shieldP3': 'De qualquer forma, o escudo só dispara uma vez. Depois de ser usado (ganhando ou perdendo), não recebe outro até… bem, neste momento não há forma de ganhar um novo automaticamente depois de classificado — é uma rede de segurança única, não recorrente, para todos os ranks até ao Lixo.',
