@@ -9,7 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
-import { MatchService, RatingEvent } from '../../core/services/match.service';
+import { MatchService } from '../../core/services/match.service';
 import { SeasonService } from '../../core/services/season.service';
 import { MatchSummary } from '../../core/models/match';
 import { PlayerSeasonStats } from '../../core/models/season';
@@ -40,13 +40,13 @@ import { I18nService } from '../../core/i18n/i18n.service';
           </h1>
           <div class="rank-row">
             <app-rank-badge [rank]="p.rank" [placementMatches]="p.placementMatches" />
-            @if (shieldStatus(); as status) {
+            @if (p.rank.tier !== 'Unranked') {
               <mat-icon
                 class="shield-status"
-                [class.broken]="status === 'broken'"
-                [matTooltip]="i18n.t(status === 'active' ? 'playerProfile.shieldActiveTooltip' : 'playerProfile.shieldBrokenTooltip')"
-                [attr.aria-label]="i18n.t(status === 'active' ? 'playerProfile.shieldActiveTooltip' : 'playerProfile.shieldBrokenTooltip')"
-              >{{ status === 'active' ? 'shield' : 'gpp_bad' }}</mat-icon>
+                [class.armed]="p.demotionShield"
+                [matTooltip]="i18n.t(p.demotionShield ? 'playerProfile.shieldArmedTooltip' : 'playerProfile.shieldReadyTooltip')"
+                [attr.aria-label]="i18n.t(p.demotionShield ? 'playerProfile.shieldArmedTooltip' : 'playerProfile.shieldReadyTooltip')"
+              >{{ p.demotionShield ? 'gpp_bad' : 'shield' }}</mat-icon>
             }
           </div>
         </div>
@@ -157,7 +157,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
     h1 { margin: 4px 0 10px; display: flex; align-items: center; gap: 10px; }
     .rank-row { display: inline-flex; align-items: center; gap: 6px; }
     .shield-status { font-size: 18px; width: 18px; height: 18px; color: #5b8def; }
-    .shield-status.broken { color: #e6533c; }
+    .shield-status.armed { color: #e6533c; }
     .inactive-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; background: var(--mat-sys-surface-variant); color: var(--mat-sys-on-surface-variant); vertical-align: middle; }
     .progress-block { margin-bottom: 20px; }
     .progress-header { margin-bottom: 6px; font-size: 0.85rem; color: var(--mat-sys-on-surface-variant); font-weight: 600; }
@@ -190,7 +190,6 @@ export class PlayerProfileComponent {
 
   readonly player = signal<Player | null>(null);
   readonly matches = signal<MatchSummary[]>([]);
-  readonly latestRatingEvent = signal<RatingEvent | null>(null);
   readonly seasonHistory = signal<PlayerSeasonStats[]>([]);
   readonly names = signal<Record<string, string>>({});
   readonly loading = signal(true);
@@ -205,26 +204,6 @@ export class PlayerProfileComponent {
     if (!p) return 0;
     const total = p.wins + p.losses;
     return total === 0 ? 0 : Math.round((p.wins / total) * 1000) / 10;
-  });
-
-  /**
-   * 'active' when the Demotion Shield is currently armed and protecting
-   * this player's rank. 'broken' when their most recent match consumed the
-   * shield (demotionShield true -> false) but they still dropped rank --
-   * i.e. the shield couldn't save them a second time in a row. Only the
-   * single latest rating event is considered, so this naturally clears
-   * itself the moment they play their next match, same as the shield state
-   * itself.
-   */
-  readonly shieldStatus = computed<'active' | 'broken' | null>(() => {
-    const p = this.player();
-    if (!p) return null;
-    if (p.demotionShield) return 'active';
-    const last = this.latestRatingEvent();
-    if (last && last.demotionShieldBefore && !last.demotionShieldAfter && last.rankBefore !== last.rankAfter) {
-      return 'broken';
-    }
-    return null;
   });
 
   readonly teammateStats = computed<TeammateStat[]>(() => {
@@ -268,13 +247,12 @@ export class PlayerProfileComponent {
     this.playerId = this.route.snapshot.paramMap.get('id') ?? '';
     if (!this.playerId) { this.error = this.i18n.t('playerProfile.noPlayerSpecified'); this.loading.set(false); return; }
     try {
-      const [player, matches, names, seasonHistory, teamNameMap, ratingEvents] = await Promise.all([
+      const [player, matches, names, seasonHistory, teamNameMap] = await Promise.all([
         this.playerService.getById(this.playerId),
         this.matchService.listForPlayer(this.playerId),
         this.playerService.nameMap(),
         this.seasonService.historyForPlayer(this.playerId),
-        this.teamNameService.nameMap(),
-        this.matchService.listRatingEvents(this.playerId, 1)
+        this.teamNameService.nameMap()
       ]);
       if (!player) { this.error = this.i18n.t('playerProfile.notFound'); return; }
       this.player.set(player);
@@ -282,7 +260,6 @@ export class PlayerProfileComponent {
       this.names.set(names);
       this.seasonHistory.set(seasonHistory);
       this.teamNameMap = teamNameMap;
-      this.latestRatingEvent.set(ratingEvents[0] ?? null);
     } catch {
       this.error = this.i18n.t('playerProfile.loadError');
     } finally {
