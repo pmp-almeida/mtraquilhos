@@ -1,13 +1,15 @@
 # No-auth deployment model
 
-This application is a standalone trusted-group tool intended for the Multicert
-mTrust development team. It has no authentication, accounts, roles, or private
-data. Anyone who can access the public application can potentially submit a
-match through the permitted public RPC.
+This application is a standalone trusted-group tool intended for a small
+group of friends or colleagues who want to track their own table-football
+matches. It has no authentication, accounts, roles, or private data. Anyone
+who can access the public application can potentially submit a match through
+the permitted public RPC.
 
-The intended audience does not create a technical mTrust integration: this
-project must not depend on mTrust repositories, services, authentication, or
-production data.
+The intended audience does not need any technical integration with an
+existing organization: this project must not depend on any outside
+repositories, services, authentication, or production data beyond Supabase
+and GitHub Pages themselves.
 
 The Angular bundle may contain only the Supabase project URL and browser-safe
 anonymous key. Never add `SUPABASE_SERVICE_ROLE_KEY` or another secret to

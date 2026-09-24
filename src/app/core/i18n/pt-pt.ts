@@ -292,7 +292,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   // ---- Seasons ----
   'seasons.eyebrow': 'ÉPOCAS CLASSIFICATIVAS',
   'seasons.title': 'Épocas',
-  'seasons.subtitle': 'Tal como os Atos do Valorant, uma nova época comprime suavemente o Elo de cada jogador ativo em direção à média do grupo em vez de o apagar — o Elo máximo histórico, as vitórias/derrotas e o histórico de partidas mantêm-se intactos, mas a tabela fica com uma disputa mais renhida.',
+  'seasons.subtitle': 'Tal como as reinicializações sazonais comuns em jogos de ranking competitivo, uma nova época comprime suavemente o Elo de cada jogador ativo em direção à média do grupo em vez de o apagar — o Elo máximo histórico, as vitórias/derrotas e o histórico de partidas mantêm-se intactos, mas a tabela fica com uma disputa mais renhida.',
   'seasons.loadError': 'Não foi possível carregar as épocas. Verifique a configuração do Supabase.',
   'seasons.active': 'ATIVA',
   'seasons.seasonHeading': 'Época {number} — {name}',
@@ -403,6 +403,8 @@ export const PT_PT: Record<TranslationKey, string> = {
   'changelog.featuresLabel': 'Novo',
   'changelog.fixesLabel': 'Corrigido',
   'changelog.currentBadge': 'Atual',
+  'changelog.v1_3_1.title': 'Pequenas limpezas de texto',
+  'changelog.v1_3_1.f1': 'Algumas referências internas que restavam de antes de este projeto ser público foram atualizadas -- sem alterações ao aspeto ou funcionamento da aplicação.',
   'changelog.v1_3_0.title': 'Ícone de estado do Escudo de Despromoção no perfil do jogador',
   'changelog.v1_3_0.f1': 'Um pequeno ícone de escudo aparece agora junto à classificação de um jogador: intacto por padrão, e partido sempre que a RR chega a 0 e o Escudo de Despromoção está a travar uma descida.',
   'changelog.v1_2_0.title': 'Uma barra de ferramentas mais arrumada',
