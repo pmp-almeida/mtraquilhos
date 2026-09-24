@@ -27,10 +27,10 @@ export const RANK_THRESHOLDS: readonly RankThreshold[] = [
 ];
 
 /**
- * Ordered rank colors, loosely modeled after Valorant's Iron -> Radiant
- * ladder: cool, low-saturation tones at the bottom rising to warm, saturated
- * tones at the top, with Champion given a distinct gold/red treatment as the
- * single highest tier (Valorant's Radiant equivalent).
+ * Ordered rank colors, loosely modeled after competitive shooters' tiered
+ * rank ladders: cool, low-saturation tones at the bottom rising to warm,
+ * saturated tones at the top, with Champion given a distinct gold/red
+ * treatment as the single highest tier.
  */
 export const RANK_COLORS: Record<RankTier | 'Unranked', string> = {
   Unranked: '#7c8797',

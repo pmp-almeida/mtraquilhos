@@ -298,7 +298,7 @@ export const EN_GB = {
   // ---- Seasons ----
   'seasons.eyebrow': 'RANKED SEASONS',
   'seasons.title': 'Seasons',
-  'seasons.subtitle': "Like Valorant's Acts, a new season softly compresses every active player's Elo toward the group average instead of wiping it — lifetime peak Elo, wins/losses and match history are untouched, but the ladder gets a fresh, closer race.",
+  'seasons.subtitle': "Like the seasonal resets common in ranked ladder games, a new season softly compresses every active player's Elo toward the group average instead of wiping it — lifetime peak Elo, wins/losses and match history are untouched, but the ladder gets a fresh, closer race.",
   'seasons.loadError': 'Seasons could not be loaded. Check the Supabase configuration.',
   'seasons.active': 'ACTIVE',
   'seasons.seasonHeading': 'Season {number} — {name}',
@@ -410,6 +410,8 @@ export const EN_GB = {
   'changelog.featuresLabel': 'New',
   'changelog.fixesLabel': 'Fixed',
   'changelog.currentBadge': 'Current',
+  'changelog.v1_3_1.title': 'Cleaned-up wording',
+  'changelog.v1_3_1.f1': 'Some internal references left over from before this project was public have been tidied up -- no change to how the app looks or works.',
   'changelog.v1_3_0.title': 'A Demotion Shield status icon on player profiles',
   'changelog.v1_3_0.f1': 'A small shield icon now sits next to a player\'s rank on their profile: intact by default, and cracked whenever their RR has hit 0 and their Demotion Shield is currently blocking a drop.',
   'changelog.v1_2_0.title': 'A tidier toolbar',

@@ -10,10 +10,10 @@ app with no sign-up.
 
 ## Purpose
 
-This is an internal recreational tool for the Multicert mTrust
-development team. It remains a standalone application: it does not
-integrate with mTrust services, repositories, authentication, or
-production data.
+This is a recreational tool for a small group of friends or colleagues
+who play table football together. It's a standalone application: it
+doesn't integrate with any outside organization's services,
+repositories, authentication, or production data.
 
 The Angular frontend is hosted as a static site (GitHub Pages) and uses
 Supabase for the application database and authoritative match
@@ -37,9 +37,10 @@ sharing or deploying an instance.
   exception (Champion included) the instant a player would otherwise
   drop, resolved by the result of their very next match. See
   `table-football-ranked-app-spec-v2.md` for the exact rules.
-- Optional **Seasons**: a Valorant-Act-style soft reset that compresses
-  every active player's Elo toward the group average instead of wiping
-  it, without touching lifetime stats or match history.
+- Optional **Seasons**: a soft reset, in the style of the seasonal resets
+  common in ranked ladder games, that compresses every active player's
+  Elo toward the group average instead of wiping it, without touching
+  lifetime stats or match history.
 
 **Playing and recording matches**
 - **Live Match**: score a match live from one shared device at the

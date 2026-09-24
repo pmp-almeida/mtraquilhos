@@ -1814,7 +1814,7 @@ The demotion-match resolution rule from section 19 is unchanged, but stated more
 
 # 49. Addendum — Seasons
 
-Seasons are implemented as an optional, admin-triggered **soft reset**, modeled on Valorant's Acts: instead of wiping ratings, a new season compresses every active player's Elo toward the group's current mean.
+Seasons are implemented as an optional, admin-triggered **soft reset**, modeled on the seasonal resets common in ranked ladder games: instead of wiping ratings, a new season compresses every active player's Elo toward the group's current mean.
 
 ## Behavior
 
@@ -1871,7 +1871,7 @@ Recording where this pass closed gaps against the original spec, and one deliber
 - **Closed:** Section 33's random team generator had a service (`RandomTeamService`) but no screen. A "Generate teams" page now exists.
 - **Closed:** Section 34's Player Profile screen did not exist (only a flat players list did). A full profile page now exists per player: rank, RR, Elo, peak Elo, core stats, streaks, biggest Elo gain/loss, the full teammate table with Best/Worst Teammate, season history, and recent matches.
 - **Deviation:** Section 29 suggests `is_placement_match` and `placement_number` columns on the `matches` table. These were not added. A single match can be a placement match for one player and a regular ranked match for their teammates (each player's placement progress advances independently), so a match-level flag cannot represent this correctly. Placement status is instead read per player from `rating_events.placement_matches_before` / `placement_matches_after` (already part of the original schema), which is unambiguous. Section 13's "Placement Match History" requirement — that placement progress is visible and tied to specific matches — is still met, just per player rather than per match.
-- **UI framework:** Section 35 is unchanged in substance (Angular Material) but the app now uses a dark, Material 3 "competitive" theme (red primary, tier-colored rank badges modeled loosely on Valorant's rank-color ladder) rather than the default light azure/blue theme, per section 35's "competitive, sporty, game-like" requirement.
+- **UI framework:** Section 35 is unchanged in substance (Angular Material) but the app now uses a dark, Material 3 "competitive" theme (red primary, tier-colored rank badges modeled loosely on the tiered rank-color ladders common in competitive shooters) rather than the default light azure/blue theme, per section 35's "competitive, sporty, game-like" requirement.
 - **Fixed (production bug):** `record_match` originally wrote a player's placement-completion flag and their resulting visible rank in two separate `UPDATE` statements. Postgres validates table CHECK constraints at the end of every statement, not just at commit, so the moment any player's placement count first reached the required number, the first `UPDATE` alone produced a row with `placement_complete = true` and `visible_rank` still `'Unranked'` -- violating the section-4 invariant that a player is Unranked if and only if placement is incomplete -- and the entire match was rejected before the second `UPDATE` (which would have set the real rank) ever ran. Every field for a player is now computed first and written in a single `UPDATE`, so the row is only ever checked in its final, consistent state. No historical data was affected, since the failing statement rolled back.
 
 ---

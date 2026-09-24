@@ -1,4 +1,4 @@
--- Seasons: a Valorant-Act-style soft reset. A season compresses every
+-- Seasons: a ranked-ladder-style soft reset. A season compresses every
 -- active player's Elo toward the group mean instead of wiping it, so
 -- lifetime history (peak_elo, wins/losses, rating_events, matches) is
 -- untouched while the competitive ladder gets a periodic refresh.
