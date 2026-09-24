@@ -23,16 +23,40 @@
       <span class="record-cta-label">{{ i18n.t('nav.liveMatch') }}</span>
     </a>
 
-    <a mat-icon-button routerLink="/how-it-works" [matTooltip]="i18n.t('nav.howItWorks')" [attr.aria-label]="i18n.t('nav.howItWorks')">
-      <mat-icon>help_outline</mat-icon>
-    </a>
-    <a mat-icon-button routerLink="/changelog" [matTooltip]="i18n.t('nav.changelog')" [attr.aria-label]="i18n.t('nav.changelog')">
-      <mat-icon>new_releases</mat-icon>
-    </a>
-
-    <app-install-button />
     <app-theme-toggle />
     <app-language-switcher />
+
+    <button
+      mat-icon-button
+      class="more-trigger"
+      [matMenuTriggerFor]="moreMenu"
+      [matTooltip]="i18n.t('nav.more')"
+      [attr.aria-label]="i18n.t('nav.more')"
+    >
+      <mat-icon>more_vert</mat-icon>
+    </button>
+    <mat-menu #moreMenu="matMenu">
+      <a mat-menu-item routerLink="/how-it-works" routerLinkActive="active">
+        <mat-icon aria-hidden="true">help_outline</mat-icon>
+        <span>{{ i18n.t('nav.howItWorks') }}</span>
+      </a>
+      <a mat-menu-item routerLink="/changelog" routerLinkActive="active">
+        <mat-icon aria-hidden="true">new_releases</mat-icon>
+        <span>{{ i18n.t('nav.changelog') }}</span>
+      </a>
+      @if (install.available()) {
+        <button mat-menu-item type="button" (click)="install.promptInstall()">
+          <mat-icon aria-hidden="true">install_mobile</mat-icon>
+          <span>{{ i18n.t('pwa.installLabel') }}</span>
+        </button>
+      }
+      @if (gate.required) {
+        <button mat-menu-item type="button" (click)="gate.lock()">
+          <mat-icon aria-hidden="true">lock</mat-icon>
+          <span>{{ i18n.t('nav.lock') }}</span>
+        </button>
+      }
+    </mat-menu>
 
     <button mat-icon-button class="mobile-menu-trigger" [matMenuTriggerFor]="mobileMenu" [attr.aria-label]="i18n.t('nav.openMenu')">
       <mat-icon>menu</mat-icon>
@@ -44,13 +68,28 @@
           <span>{{ i18n.t(link.labelKey) }}</span>
         </a>
       }
+      <mat-divider />
+      <a mat-menu-item routerLink="/how-it-works" routerLinkActive="active">
+        <mat-icon aria-hidden="true">help_outline</mat-icon>
+        <span>{{ i18n.t('nav.howItWorks') }}</span>
+      </a>
+      <a mat-menu-item routerLink="/changelog" routerLinkActive="active">
+        <mat-icon aria-hidden="true">new_releases</mat-icon>
+        <span>{{ i18n.t('nav.changelog') }}</span>
+      </a>
+      @if (install.available()) {
+        <button mat-menu-item type="button" (click)="install.promptInstall()">
+          <mat-icon aria-hidden="true">install_mobile</mat-icon>
+          <span>{{ i18n.t('pwa.installLabel') }}</span>
+        </button>
+      }
+      @if (gate.required) {
+        <button mat-menu-item type="button" (click)="gate.lock()">
+          <mat-icon aria-hidden="true">lock</mat-icon>
+          <span>{{ i18n.t('nav.lock') }}</span>
+        </button>
+      }
     </mat-menu>
-
-    @if (gate.required) {
-      <button mat-icon-button (click)="gate.lock()" [matTooltip]="i18n.t('nav.lockTooltip')" [attr.aria-label]="i18n.t('nav.lock')">
-        <mat-icon>lock</mat-icon>
-      </button>
-    }
   </mat-toolbar>
 
   <main class="app-content">
