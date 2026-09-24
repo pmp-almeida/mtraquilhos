@@ -9,10 +9,6 @@ export interface RatingEvent {
   eloBefore: number;
   eloAfter: number;
   eloDelta: number;
-  rankBefore: string;
-  rankAfter: string;
-  demotionShieldBefore: boolean;
-  demotionShieldAfter: boolean;
   createdAt: string;
 }
 
@@ -95,26 +91,18 @@ export class MatchService {
     return (data ?? []).map(row => this.mapRow(row));
   }
 
-  /**
-   * Per-match rating history for a player, newest first -- Elo deltas plus
-   * the rank/Demotion Shield state either side of each match. Element 0
-   * (with `limit: 1`) is what PlayerProfileComponent reads to tell whether
-   * this player's last match consumed their shield without saving them
-   * (shield true -> false with the rank still changing).
-   */
+  /** Per-match Elo deltas for a player, newest first. Powers streaks and biggest gain/loss stats. */
   async listRatingEvents(playerId: string, limit = 300): Promise<RatingEvent[]> {
     if (!this.supabase.client) return [];
     const { data, error } = await this.supabase.client.from('rating_events')
-      .select('match_id, elo_before, elo_after, elo_delta, rank_before, rank_after, demotion_shield_before, demotion_shield_after, created_at')
+      .select('match_id, elo_before, elo_after, elo_delta, created_at')
       .eq('player_id', playerId)
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw error;
     return (data ?? []).map(row => ({
-      matchId: row.match_id, eloBefore: row.elo_before, eloAfter: row.elo_after, eloDelta: row.elo_delta,
-      rankBefore: row.rank_before, rankAfter: row.rank_after,
-      demotionShieldBefore: row.demotion_shield_before, demotionShieldAfter: row.demotion_shield_after,
-      createdAt: row.created_at
+      matchId: row.match_id, eloBefore: row.elo_before, eloAfter: row.elo_after,
+      eloDelta: row.elo_delta, createdAt: row.created_at
     }));
   }
 
