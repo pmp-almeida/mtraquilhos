@@ -171,7 +171,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   'live.discardedInactivePlayer': 'A sua partida ao vivo em curso envolvia um jogador que já não está ativo, por isso foi descartada.',
   'live.resumed': 'A sua partida ao vivo em curso foi retomada.',
   'live.nextChallengers': 'Vencedores ficam — novos desafiantes',
-  'live.notEnoughForChain': 'É necessário pelo menos mais dois jogadores ativos para preparar um novo desafio.',
+  'live.samePlayers': 'Mesmos jogadores',
   'live.randomizeTeams': 'Baralhar equipas',
   'live.orPickManually': 'Ou escolha os jogadores você mesmo',
 
@@ -403,6 +403,9 @@ export const PT_PT: Record<TranslationKey, string> = {
   'changelog.featuresLabel': 'Novo',
   'changelog.fixesLabel': 'Corrigido',
   'changelog.currentBadge': 'Atual',
+  'changelog.v1_4_0.title': 'Revanches mais inteligentes na partida ao vivo',
+  'changelog.v1_4_0.f1': '"Vencedores ficam" já funciona também em grupos pequenos: se não houver dois jogadores livres para desafiar os vencedores, os lugares em falta são preenchidos com jogadores da equipa que acabou de perder, em vez de a funcionalidade simplesmente recusar.',
+  'changelog.v1_4_0.f2': 'Adicionado o botão "Mesmos jogadores" após uma partida ao vivo, para repetir instantaneamente com os mesmos quatro jogadores e as mesmas equipas.',
   'changelog.v1_3_1.title': 'Pequenas limpezas de texto',
   'changelog.v1_3_1.f1': 'Algumas referências internas que restavam de antes de este projeto ser público foram atualizadas -- sem alterações ao aspeto ou funcionamento da aplicação.',
   'changelog.v1_3_0.title': 'Ícone de estado do Escudo de Despromoção no perfil do jogador',

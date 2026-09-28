@@ -26,6 +26,12 @@ export interface ChangelogRelease {
  */
 export const CHANGELOG: ChangelogRelease[] = [
   {
+    version: '1.4.0',
+    date: '2026-09-28',
+    titleKey: 'changelog.v1_4_0.title',
+    featureKeys: ['changelog.v1_4_0.f1', 'changelog.v1_4_0.f2']
+  },
+  {
     version: '1.3.1',
     date: '2026-09-24',
     titleKey: 'changelog.v1_3_1.title',

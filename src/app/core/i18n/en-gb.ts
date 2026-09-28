@@ -177,7 +177,7 @@ export const EN_GB = {
   'live.discardedInactivePlayer': 'Your in-progress live match involved a player who is no longer active, so it was discarded.',
   'live.resumed': 'Resumed your in-progress live match.',
   'live.nextChallengers': 'Winners stay — new challengers',
-  'live.notEnoughForChain': 'Need at least two more active players to line up a fresh challenge.',
+  'live.samePlayers': 'Same players',
   'live.randomizeTeams': 'Randomize teams',
   'live.orPickManually': 'Or pick players yourself',
 
@@ -410,6 +410,9 @@ export const EN_GB = {
   'changelog.featuresLabel': 'New',
   'changelog.fixesLabel': 'Fixed',
   'changelog.currentBadge': 'Current',
+  'changelog.v1_4_0.title': 'Smarter live match rematches',
+  'changelog.v1_4_0.f1': '"Winners stay" now works for small groups too: if there aren\'t two fresh players left to challenge the winners, it tops up the new pair from the team that just lost instead of refusing to start.',
+  'changelog.v1_4_0.f2': 'Added a "Same players" button after a live match to instantly run it back with the exact same four players and sides.',
   'changelog.v1_3_1.title': 'Cleaned-up wording',
   'changelog.v1_3_1.f1': 'Some internal references left over from before this project was public have been tidied up -- no change to how the app looks or works.',
   'changelog.v1_3_0.title': 'A Demotion Shield status icon on player profiles',
