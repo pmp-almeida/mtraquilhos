@@ -172,6 +172,20 @@ const STORAGE_KEY = 'tf-live-match-v1';
               </mat-card-actions>
             </mat-card>
           </div>
+          @if (streakPrompt(); as sp) {
+            <div class="finish-backdrop">
+              <mat-card class="finish-sheet">
+                <mat-card-header><mat-card-title>{{ i18n.t('live.streakTitle') }}</mat-card-title></mat-card-header>
+                <mat-card-content>
+                  <p>{{ i18n.t('live.streakBody', { team: sp.teamLabel, count: sp.count }) }}</p>
+                </mat-card-content>
+                <mat-card-actions>
+                  <button mat-stroked-button type="button" (click)="confirmStreakKeep()">{{ i18n.t('live.streakKeep') }}</button>
+                  <button mat-flat-button color="primary" type="button" (click)="confirmStreakSwitch()">{{ i18n.t('live.streakSwitch') }}</button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+          }
         } @else {
           <div class="zones">
             <button type="button" class="zone team-a" (click)="addPoint('A')">
@@ -359,6 +373,23 @@ export class LiveMatchComponent {
   private dismissedForScore: string | null = null;
   private dismissTick = signal(0);
 
+  /**
+   * Tracks the current pair's win streak *as a duo*, purely in memory for
+   * this visit to the live match screen -- not read from match history, so
+   * it only ever reflects consecutive wins recorded right here in this
+   * session's chain of matches. Reset implicitly: the moment a different
+   * pair wins (or the streak team gets split up via "Switch it up"), the
+   * next confirmed win no longer matches `key` and a fresh streak of 1
+   * starts, no explicit reset code needed.
+   */
+  private winStreak: { key: string; count: number } | null = null;
+  /** The two possible next matchups computed by startWithNewOpponents when a streak prompt is shown, chosen between by confirmStreakKeep/confirmStreakSwitch. */
+  private pendingRematch: {
+    keep: { a1: string; a2: string; b1: string; b2: string };
+    switched: { a1: string; a2: string; b1: string; b2: string };
+  } | null = null;
+  readonly streakPrompt = signal<{ count: number; teamLabel: string } | null>(null);
+
   readonly leadingTeam = computed(() => (this.scoreA() > this.scoreB() ? 'A' : 'B'));
 
   readonly showFinishPrompt = computed(() => {
@@ -465,6 +496,25 @@ export class LiveMatchComponent {
     return custom ?? `${this.nameOf(idA)} & ${this.nameOf(idB)}`;
   }
 
+  /** Order-independent identity for a pair, used only for the in-memory win-streak check above (unrelated to teamPairKey, which is for the persisted custom-name lookup). */
+  private pairKey(idA: string, idB: string): string {
+    return [idA, idB].sort().join('|');
+  }
+
+  /** Resets the board and drops straight into a new live round with the given four players, same target score as before. Shared by every post-match shortcut (Next challengers, Same players, and the two streak-prompt choices) so they can't drift out of sync with each other. */
+  private beginMatch(ids: { a1: string; a2: string; b1: string; b2: string }): void {
+    this.idsSignal.set(ids);
+    this.scoreA.set(0);
+    this.scoreB.set(0);
+    this.history.set([]);
+    this.dismissedForScore = null;
+    this.startedAt = new Date().toISOString();
+    this.result.set(null);
+    this.confirmingCancel.set(false);
+    this.phase.set('live');
+    this.persist();
+  }
+
   /** Fills the four player selects with a fresh random (or balanced) matchup from active players -- same generator as Generate Teams, just inline so there's no page hop before Start. The player can still tweak any of the four selects afterwards. */
   randomizeTeams(): void {
     try {
@@ -531,6 +581,9 @@ export class LiveMatchComponent {
         winner, scoreA: this.scoreA(), scoreB: this.scoreB(), note: 'Recorded via Live Mode'
       });
       this.result.set(recorded);
+      const winnerIds = winner === 'A' ? [ids.a1, ids.a2] : [ids.b1, ids.b2];
+      const key = this.pairKey(winnerIds[0], winnerIds[1]);
+      this.winStreak = this.winStreak?.key === key ? { key, count: this.winStreak.count + 1 } : { key, count: 1 };
       this.clearPersisted();
     } catch (error) {
       this.snackBar.open(error instanceof Error ? error.message : this.i18n.t('live.recordError'), this.i18n.t('common.close'), { duration: 4000 });
@@ -559,8 +612,14 @@ export class LiveMatchComponent {
    * small groups run out fast -- the remaining slot(s) are topped up at
    * random from the team that just lost, so a rematch against (part of)
    * the same losing pair is always possible rather than the feature just
-   * refusing to work. Skips the setup screen entirely and drops straight
-   * into a new live match, same target score as before.
+   * refusing to work.
+   *
+   * If the winning duo is on a streak of three or more, this pauses for a
+   * "maybe switch it up?" prompt instead of starting immediately -- see
+   * confirmStreakKeep/confirmStreakSwitch, which finish the job by calling
+   * beginMatch with whichever pairing the player picks. Otherwise it skips
+   * the setup screen entirely and drops straight into a new live match,
+   * same target score as before.
    */
   startWithNewOpponents(): void {
     const res = this.result();
@@ -573,16 +632,33 @@ export class LiveMatchComponent {
     const fresh = this.players().filter(p => !taken.has(p.id)).map(p => p.id).sort(() => Math.random() - 0.5);
     const backup = [...losers].sort(() => Math.random() - 0.5);
     const [challenger1, challenger2] = [...fresh, ...backup];
-    this.idsSignal.set({ a1: winners[0], a2: winners[1], b1: challenger1, b2: challenger2 });
-    this.scoreA.set(0);
-    this.scoreB.set(0);
-    this.history.set([]);
-    this.dismissedForScore = null;
-    this.startedAt = new Date().toISOString();
-    this.result.set(null);
-    this.confirmingCancel.set(false);
-    this.phase.set('live');
-    this.persist();
+    const keep = { a1: winners[0], a2: winners[1], b1: challenger1, b2: challenger2 };
+
+    const streak = this.winStreak;
+    if (streak && streak.count >= 3 && streak.key === this.pairKey(winners[0], winners[1])) {
+      const shuffledWinners = [...winners].sort(() => Math.random() - 0.5);
+      const switched = { a1: shuffledWinners[0], a2: challenger1, b1: shuffledWinners[1], b2: challenger2 };
+      this.pendingRematch = { keep, switched };
+      this.streakPrompt.set({ count: streak.count, teamLabel: this.teamLabelFor(winners[0], winners[1]) });
+      return;
+    }
+    this.beginMatch(keep);
+  }
+
+  /** "Keep them together": the streak prompt's first choice -- same winning pair vs the new challengers, exactly as Next challengers would've done without the prompt. */
+  confirmStreakKeep(): void {
+    const pending = this.pendingRematch;
+    this.streakPrompt.set(null);
+    this.pendingRematch = null;
+    if (pending) this.beginMatch(pending.keep);
+  }
+
+  /** "Switch it up": the streak prompt's other choice -- splits the winning duo across both new teams, each paired with one of the challengers, so the streak team isn't playing together next round. */
+  confirmStreakSwitch(): void {
+    const pending = this.pendingRematch;
+    this.streakPrompt.set(null);
+    this.pendingRematch = null;
+    if (pending) this.beginMatch(pending.switched);
   }
 
   /**
@@ -593,15 +669,7 @@ export class LiveMatchComponent {
    */
   startWithSamePlayers(): void {
     if (!this.result()) return;
-    this.scoreA.set(0);
-    this.scoreB.set(0);
-    this.history.set([]);
-    this.dismissedForScore = null;
-    this.startedAt = new Date().toISOString();
-    this.result.set(null);
-    this.confirmingCancel.set(false);
-    this.phase.set('live');
-    this.persist();
+    this.beginMatch(this.idsSignal());
   }
 
   private persist(): void {
