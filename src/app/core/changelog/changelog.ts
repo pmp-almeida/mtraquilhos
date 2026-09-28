@@ -29,7 +29,7 @@ export const CHANGELOG: ChangelogRelease[] = [
     version: '1.4.0',
     date: '2026-09-28',
     titleKey: 'changelog.v1_4_0.title',
-    featureKeys: ['changelog.v1_4_0.f1', 'changelog.v1_4_0.f2']
+    featureKeys: ['changelog.v1_4_0.f1', 'changelog.v1_4_0.f2', 'changelog.v1_4_0.f3']
   },
   {
     version: '1.3.1',

@@ -178,6 +178,10 @@ export const EN_GB = {
   'live.resumed': 'Resumed your in-progress live match.',
   'live.nextChallengers': 'Winners stay — new challengers',
   'live.samePlayers': 'Same players',
+  'live.streakTitle': 'On a hot streak',
+  'live.streakBody': '{team} has won {count} games in a row. Maybe it\'s time to switch it up?',
+  'live.streakKeep': 'Keep them together',
+  'live.streakSwitch': 'Switch it up',
   'live.randomizeTeams': 'Randomize teams',
   'live.orPickManually': 'Or pick players yourself',
 
@@ -413,6 +417,7 @@ export const EN_GB = {
   'changelog.v1_4_0.title': 'Smarter live match rematches',
   'changelog.v1_4_0.f1': '"Winners stay" now works for small groups too: if there aren\'t two fresh players left to challenge the winners, it tops up the new pair from the team that just lost instead of refusing to start.',
   'changelog.v1_4_0.f2': 'Added a "Same players" button after a live match to instantly run it back with the exact same four players and sides.',
+  'changelog.v1_4_0.f3': 'When a team keeps winning -- three games in a row or more -- "Winners stay" now offers to split them up before the next match instead of automatically keeping them together.',
   'changelog.v1_3_1.title': 'Cleaned-up wording',
   'changelog.v1_3_1.f1': 'Some internal references left over from before this project was public have been tidied up -- no change to how the app looks or works.',
   'changelog.v1_3_0.title': 'A Demotion Shield status icon on player profiles',

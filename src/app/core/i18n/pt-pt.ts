@@ -172,6 +172,10 @@ export const PT_PT: Record<TranslationKey, string> = {
   'live.resumed': 'A sua partida ao vivo em curso foi retomada.',
   'live.nextChallengers': 'Vencedores ficam — novos desafiantes',
   'live.samePlayers': 'Mesmos jogadores',
+  'live.streakTitle': 'Em maré de vitórias',
+  'live.streakBody': '{team} já venceu {count} jogos seguidos. Talvez seja altura de baralhar as equipas?',
+  'live.streakKeep': 'Manter a dupla',
+  'live.streakSwitch': 'Baralhar equipas',
   'live.randomizeTeams': 'Baralhar equipas',
   'live.orPickManually': 'Ou escolha os jogadores você mesmo',
 
@@ -406,6 +410,7 @@ export const PT_PT: Record<TranslationKey, string> = {
   'changelog.v1_4_0.title': 'Revanches mais inteligentes na partida ao vivo',
   'changelog.v1_4_0.f1': '"Vencedores ficam" já funciona também em grupos pequenos: se não houver dois jogadores livres para desafiar os vencedores, os lugares em falta são preenchidos com jogadores da equipa que acabou de perder, em vez de a funcionalidade simplesmente recusar.',
   'changelog.v1_4_0.f2': 'Adicionado o botão "Mesmos jogadores" após uma partida ao vivo, para repetir instantaneamente com os mesmos quatro jogadores e as mesmas equipas.',
+  'changelog.v1_4_0.f3': 'Quando uma dupla continua a vencer -- três jogos seguidos ou mais -- "Vencedores ficam" passa a sugerir separá-los antes da próxima partida, em vez de os manter sempre juntos automaticamente.',
   'changelog.v1_3_1.title': 'Pequenas limpezas de texto',
   'changelog.v1_3_1.f1': 'Algumas referências internas que restavam de antes de este projeto ser público foram atualizadas -- sem alterações ao aspeto ou funcionamento da aplicação.',
   'changelog.v1_3_0.title': 'Ícone de estado do Escudo de Despromoção no perfil do jogador',
