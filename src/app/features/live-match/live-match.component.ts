@@ -161,6 +161,10 @@ const STORAGE_KEY = 'tf-live-match-v1';
                     {{ i18n.t('live.nextChallengers') }}
                   </button>
                 }
+                <button mat-stroked-button (click)="startWithSamePlayers()">
+                  <mat-icon aria-hidden="true">replay</mat-icon>
+                  {{ i18n.t('live.samePlayers') }}
+                </button>
                 <button mat-flat-button color="primary" (click)="startAnother()">
                   <mat-icon aria-hidden="true">bolt</mat-icon>
                   {{ i18n.t('live.startAnother') }}
@@ -403,8 +407,16 @@ export class LiveMatchComponent {
     return this.teamLabelFor(ids.b1, ids.b2);
   });
 
-  /** "Winners stay" needs at least two active players besides the four who just played. */
-  readonly canChainMatch = computed(() => this.players().length >= 6);
+  /**
+   * "Winners stay" can always draw a new opposing pair: it prefers players
+   * who weren't in the match that just finished, but if fewer than two of
+   * those are around it tops up from the losing team (see
+   * startWithNewOpponents) -- so the losers pool alone, which always has
+   * exactly two players, guarantees a full pair no matter how small the
+   * group is. The one real requirement is that a match just happened at
+   * all, which already means at least four active players exist.
+   */
+  readonly canChainMatch = computed(() => this.players().length >= 4);
 
   async ngOnInit(): Promise<void> {
     try {
@@ -541,12 +553,14 @@ export class LiveMatchComponent {
   }
 
   /**
-   * "Winners stay": keeps the team that just won in place and draws a fresh
-   * opposing pair at random from whoever's active and wasn't just involved
-   * in the match that finished -- so it's guaranteed to be a different
-   * matchup than the one that just ended, not a rerun of the same losing
-   * team. Skips the setup screen entirely and drops straight into a new
-   * live match, same target score as before.
+   * "Winners stay": keeps the team that just won in place and draws a new
+   * opposing pair, preferring whoever's active and wasn't just involved in
+   * the match that finished. When there aren't two such fresh players --
+   * small groups run out fast -- the remaining slot(s) are topped up at
+   * random from the team that just lost, so a rematch against (part of)
+   * the same losing pair is always possible rather than the feature just
+   * refusing to work. Skips the setup screen entirely and drops straight
+   * into a new live match, same target score as before.
    */
   startWithNewOpponents(): void {
     const res = this.result();
@@ -556,13 +570,29 @@ export class LiveMatchComponent {
     const winners = winningIsA ? [ids.a1, ids.a2] : [ids.b1, ids.b2];
     const losers = winningIsA ? [ids.b1, ids.b2] : [ids.a1, ids.a2];
     const taken = new Set([...winners, ...losers]);
-    const fresh = this.players().filter(p => !taken.has(p.id));
-    if (fresh.length < 2) {
-      this.snackBar.open(this.i18n.t('live.notEnoughForChain'), this.i18n.t('common.close'), { duration: 4000 });
-      return;
-    }
-    const [challenger1, challenger2] = [...fresh].sort(() => Math.random() - 0.5);
-    this.idsSignal.set({ a1: winners[0], a2: winners[1], b1: challenger1.id, b2: challenger2.id });
+    const fresh = this.players().filter(p => !taken.has(p.id)).map(p => p.id).sort(() => Math.random() - 0.5);
+    const backup = [...losers].sort(() => Math.random() - 0.5);
+    const [challenger1, challenger2] = [...fresh, ...backup];
+    this.idsSignal.set({ a1: winners[0], a2: winners[1], b1: challenger1, b2: challenger2 });
+    this.scoreA.set(0);
+    this.scoreB.set(0);
+    this.history.set([]);
+    this.dismissedForScore = null;
+    this.startedAt = new Date().toISOString();
+    this.result.set(null);
+    this.confirmingCancel.set(false);
+    this.phase.set('live');
+    this.persist();
+  }
+
+  /**
+   * Straight rematch: the exact same four players, same sides, same target
+   * score -- for when that was simply a good match and everyone wants to
+   * run it back rather than shuffling anyone in or out. Skips the setup
+   * screen just like the other post-match shortcuts.
+   */
+  startWithSamePlayers(): void {
+    if (!this.result()) return;
     this.scoreA.set(0);
     this.scoreB.set(0);
     this.history.set([]);
