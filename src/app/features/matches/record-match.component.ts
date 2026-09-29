@@ -11,6 +11,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatchService } from '../../core/services/match.service';
+import { RandomTeamService } from '../../core/services/random-team.service';
 import { Player } from '../../core/models/player';
 import { PlayerService } from '../../core/services/player.service';
 import { teamPairKey } from '../../core/models/team-name';
@@ -192,6 +193,7 @@ interface PlayerProjection {
 export class RecordMatchComponent {
   private readonly fb = inject(FormBuilder);
   private readonly matchService = inject(MatchService);
+  private readonly randomTeamService = inject(RandomTeamService);
   private readonly playerService = inject(PlayerService);
   private readonly teamNameService = inject(TeamNameService);
   private readonly eloService = inject(EloService);
@@ -312,6 +314,8 @@ export class RecordMatchComponent {
         teamBPlayer1: value.teamBPlayer1, teamBPlayer2: value.teamBPlayer2,
         winner: value.winner, scoreA: value.scoreA ?? undefined, scoreB: value.scoreB ?? undefined
       });
+      // Keeps the Team Generator's fairness weighting accurate app-wide -- a match recorded here counts the same as one started from Live Match.
+      this.randomTeamService.recordPlayed([value.teamAPlayer1, value.teamAPlayer2, value.teamBPlayer1, value.teamBPlayer2]);
       this.result.set(recorded);
       this.projection.set(null);
     } catch (error) {

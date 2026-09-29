@@ -29,6 +29,8 @@ export class MatchService {
     return {
       matchId: raw.matchId,
       seasonId: raw.seasonId ?? null,
+      // Known for certain -- it's what we just told the RPC to record -- rather than inferred from teamDelta's sign, which doesn't carry that information (see RecordMatchResult.teamDelta).
+      winner: input.winner,
       expectedProbability: raw.expectedProbability,
       teamAElo: raw.teamAElo,
       teamBElo: raw.teamBElo,
