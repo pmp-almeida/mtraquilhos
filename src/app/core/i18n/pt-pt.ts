@@ -411,6 +411,8 @@ export const PT_PT: Record<TranslationKey, string> = {
   'changelog.v1_4_0.f1': '"Vencedores ficam" já funciona também em grupos pequenos: se não houver dois jogadores livres para desafiar os vencedores, os lugares em falta são preenchidos com jogadores da equipa que acabou de perder, em vez de a funcionalidade simplesmente recusar.',
   'changelog.v1_4_0.f2': 'Adicionado o botão "Mesmos jogadores" após uma partida ao vivo, para repetir instantaneamente com os mesmos quatro jogadores e as mesmas equipas.',
   'changelog.v1_4_0.f3': 'Quando uma dupla continua a vencer -- três jogos seguidos ou mais -- "Vencedores ficam" passa a sugerir separá-los antes da próxima partida, em vez de os manter sempre juntos automaticamente.',
+  'changelog.v1_4_1.title': 'Correção de navegação no perfil do jogador',
+  'changelog.v1_4_1.fix1': 'Clicar no nome de outro jogador em Companheiros de Equipa ou Confrontos Diretos (ou noutro sítio qualquer no perfil) passa agora a carregar esse jogador -- a página ficava presa no perfil original apesar de o endereço mudar.',
   'changelog.v1_3_1.title': 'Pequenas limpezas de texto',
   'changelog.v1_3_1.f1': 'Algumas referências internas que restavam de antes de este projeto ser público foram atualizadas -- sem alterações ao aspeto ou funcionamento da aplicação.',
   'changelog.v1_3_0.title': 'Ícone de estado do Escudo de Despromoção no perfil do jogador',

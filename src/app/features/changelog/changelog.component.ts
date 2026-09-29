@@ -40,12 +40,14 @@ import { I18nService } from '../../core/i18n/i18n.service';
               <mat-card-subtitle>{{ release.date }}</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
-              <p class="group-label">{{ i18n.t('changelog.featuresLabel') }}</p>
-              <ul class="feature-list">
-                @for (key of release.featureKeys; track key) {
-                  <li><mat-icon aria-hidden="true">add_circle</mat-icon><span>{{ i18n.t(key) }}</span></li>
-                }
-              </ul>
+              @if (release.featureKeys.length) {
+                <p class="group-label">{{ i18n.t('changelog.featuresLabel') }}</p>
+                <ul class="feature-list">
+                  @for (key of release.featureKeys; track key) {
+                    <li><mat-icon aria-hidden="true">add_circle</mat-icon><span>{{ i18n.t(key) }}</span></li>
+                  }
+                </ul>
+              }
               @if (release.fixKeys?.length) {
                 <p class="group-label fixes">{{ i18n.t('changelog.fixesLabel') }}</p>
                 <ul class="feature-list fixes">

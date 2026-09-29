@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -179,6 +180,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 })
 export class PlayerProfileComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly playerService = inject(PlayerService);
   private readonly matchService = inject(MatchService);
   private readonly seasonService = inject(SeasonService);
@@ -243,17 +245,41 @@ export class PlayerProfileComponent {
     return best;
   });
 
-  async ngOnInit(): Promise<void> {
-    this.playerId = this.route.snapshot.paramMap.get('id') ?? '';
-    if (!this.playerId) { this.error = this.i18n.t('playerProfile.noPlayerSpecified'); this.loading.set(false); return; }
+  /**
+   * Subscribes to the route's paramMap rather than reading `route.snapshot`
+   * once -- this route (players/:id) gets reused by Angular's default
+   * RouteReuseStrategy whenever you navigate from one player's profile
+   * straight to another's (e.g. clicking a name in Teammates or
+   * Head-to-Head), since it's the same route config both times. That reuse
+   * means ngOnInit never runs a second time, so a one-shot snapshot read
+   * would leave the page silently stuck showing the first player forever
+   * while the URL quietly updates underneath. Subscribing here re-triggers
+   * loadPlayer() on every param change, first navigation included.
+   */
+  ngOnInit(): void {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      void this.loadPlayer(params.get('id') ?? '');
+    });
+  }
+
+  private async loadPlayer(id: string): Promise<void> {
+    this.playerId = id;
+    this.error = '';
+    if (!id) { this.error = this.i18n.t('playerProfile.noPlayerSpecified'); this.loading.set(false); return; }
+    this.loading.set(true);
+    this.player.set(null);
+    this.matches.set([]);
+    this.seasonHistory.set([]);
     try {
       const [player, matches, names, seasonHistory, teamNameMap] = await Promise.all([
-        this.playerService.getById(this.playerId),
-        this.matchService.listForPlayer(this.playerId),
+        this.playerService.getById(id),
+        this.matchService.listForPlayer(id),
         this.playerService.nameMap(),
-        this.seasonService.historyForPlayer(this.playerId),
+        this.seasonService.historyForPlayer(id),
         this.teamNameService.nameMap()
       ]);
+      // A newer navigation may have started while this one was in flight -- don't let a slower, stale load clobber the player it landed on.
+      if (this.playerId !== id) return;
       if (!player) { this.error = this.i18n.t('playerProfile.notFound'); return; }
       this.player.set(player);
       this.matches.set(matches);
@@ -261,9 +287,9 @@ export class PlayerProfileComponent {
       this.seasonHistory.set(seasonHistory);
       this.teamNameMap = teamNameMap;
     } catch {
-      this.error = this.i18n.t('playerProfile.loadError');
+      if (this.playerId === id) this.error = this.i18n.t('playerProfile.loadError');
     } finally {
-      this.loading.set(false);
+      if (this.playerId === id) this.loading.set(false);
     }
   }
 
