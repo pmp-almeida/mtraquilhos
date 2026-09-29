@@ -129,7 +129,7 @@ const STORAGE_KEY = 'tf-live-match-v1';
             <mat-card class="result-card">
               <mat-card-header>
                 <mat-card-title>{{ i18n.t('live.recordedTitle') }}</mat-card-title>
-                <mat-card-subtitle>{{ i18n.t('live.recordedSubtitle', { scoreA: scoreA(), scoreB: scoreB(), team: res.teamDelta >= 0 ? 'A' : 'B' }) }}</mat-card-subtitle>
+                <mat-card-subtitle>{{ i18n.t('live.recordedSubtitle', { scoreA: scoreA(), scoreB: scoreB(), team: res.winner }) }}</mat-card-subtitle>
               </mat-card-header>
               <mat-card-content>
                 @for (p of res.players; track p.playerId) {
@@ -172,16 +172,46 @@ const STORAGE_KEY = 'tf-live-match-v1';
               </mat-card-actions>
             </mat-card>
           </div>
-          @if (streakPrompt(); as sp) {
+          @if (nextOpponentsPrompt(); as nop) {
             <div class="finish-backdrop">
-              <mat-card class="finish-sheet">
-                <mat-card-header><mat-card-title>{{ i18n.t('live.streakTitle') }}</mat-card-title></mat-card-header>
+              <mat-card class="finish-sheet next-opponents-sheet">
+                <mat-card-header><mat-card-title>{{ i18n.t('live.nextOpponentsTitle') }}</mat-card-title></mat-card-header>
                 <mat-card-content>
-                  <p>{{ i18n.t('live.streakBody', { team: sp.teamLabel, count: sp.count }) }}</p>
+                  @if (nop.streak) {
+                    <p class="streak-note">{{ i18n.t('live.streakBody', { team: teamLabelFor(nop.winners[0], nop.winners[1]), count: nop.streak.count }) }}</p>
+                    <mat-button-toggle-group
+                      class="mode-toggle"
+                      [value]="nop.splitWinners"
+                      (change)="setSplitWinners($event.value)"
+                      [attr.aria-label]="i18n.t('live.keepOrSplitLabel')"
+                    >
+                      <mat-button-toggle [value]="false">{{ i18n.t('live.streakKeep') }}</mat-button-toggle>
+                      <mat-button-toggle [value]="true">{{ i18n.t('live.streakSwitch') }}</mat-button-toggle>
+                    </mat-button-toggle-group>
+                  }
+                  <p class="tf-eyebrow divider-label">{{ i18n.t('live.pickChallengers') }}</p>
+                  <div class="challenger-row">
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ i18n.t('live.challenger1') }}</mat-label>
+                      <mat-select [value]="nop.challenger1" (selectionChange)="setChallenger(1, $event.value)">
+                        @for (p of challengerOptions(nop, 1); track p.id) { <mat-option [value]="p.id">{{ p.displayName }}</mat-option> }
+                      </mat-select>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ i18n.t('live.challenger2') }}</mat-label>
+                      <mat-select [value]="nop.challenger2" (selectionChange)="setChallenger(2, $event.value)">
+                        @for (p of challengerOptions(nop, 2); track p.id) { <mat-option [value]="p.id">{{ p.displayName }}</mat-option> }
+                      </mat-select>
+                    </mat-form-field>
+                    <button
+                      mat-icon-button type="button" (click)="shuffleChallengers()"
+                      [attr.aria-label]="i18n.t('live.shuffleChallengers')"
+                    ><mat-icon aria-hidden="true">shuffle</mat-icon></button>
+                  </div>
                 </mat-card-content>
                 <mat-card-actions>
-                  <button mat-stroked-button type="button" (click)="confirmStreakKeep()">{{ i18n.t('live.streakKeep') }}</button>
-                  <button mat-flat-button color="primary" type="button" (click)="confirmStreakSwitch()">{{ i18n.t('live.streakSwitch') }}</button>
+                  <button mat-stroked-button type="button" (click)="cancelNextOpponents()">{{ i18n.t('common.cancel') }}</button>
+                  <button mat-flat-button color="primary" type="button" (click)="confirmNextOpponents()">{{ i18n.t('live.startMatch') }}</button>
                 </mat-card-actions>
               </mat-card>
             </div>
@@ -308,6 +338,12 @@ const STORAGE_KEY = 'tf-live-match-v1';
     .proj-rows { display: flex; flex-direction: column; gap: 2px; }
     .proj-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9rem; border-bottom: 1px solid var(--mat-sys-outline-variant); }
     .disclaimer { color: var(--mat-sys-on-surface-variant); font-size: 0.78rem; margin: 12px 0 0; }
+    .next-opponents-sheet .streak-note{margin:0 0 12px}
+    .next-opponents-sheet .mode-toggle{margin-bottom:16px}
+    .next-opponents-sheet .divider-label{margin:0 0 8px}
+    .challenger-row{display:flex;align-items:center;gap:8px}
+    .challenger-row mat-form-field{flex:1;min-width:0}
+    @media (max-width:480px){.challenger-row{flex-wrap:wrap}}
 
     .result-view { flex: 1; overflow: auto; padding: 16px; }
     .result-card { max-width: 640px; margin: 0 auto; }
@@ -383,12 +419,26 @@ export class LiveMatchComponent {
    * starts, no explicit reset code needed.
    */
   private winStreak: { key: string; count: number } | null = null;
-  /** The two possible next matchups computed by startWithNewOpponents when a streak prompt is shown, chosen between by confirmStreakKeep/confirmStreakSwitch. */
-  private pendingRematch: {
-    keep: { a1: string; a2: string; b1: string; b2: string };
-    switched: { a1: string; a2: string; b1: string; b2: string };
-  } | null = null;
-  readonly streakPrompt = signal<{ count: number; teamLabel: string } | null>(null);
+
+  /**
+   * The "Next opponents" picker shown by startWithNewOpponents, open for
+   * as long as this is non-null. `winners`/`losers` are fixed for the
+   * lifetime of one prompt; `challenger1`/`challenger2` and `splitWinners`
+   * are edited in place by setChallenger/shuffleChallengers/
+   * setSplitWinners as the player adjusts the suggestion, and
+   * confirmNextOpponents reads the final state to actually start the
+   * match. `streak` is only set when the winning duo has three or more
+   * wins in a row, and gates whether the keep-together/split-them-up
+   * toggle appears at all.
+   */
+  readonly nextOpponentsPrompt = signal<{
+    winners: [string, string];
+    losers: [string, string];
+    streak: { count: number } | null;
+    splitWinners: boolean;
+    challenger1: string;
+    challenger2: string;
+  } | null>(null);
 
   readonly leadingTeam = computed(() => (this.scoreA() > this.scoreB() ? 'A' : 'B'));
 
@@ -491,7 +541,7 @@ export class LiveMatchComponent {
     return this.players().find(p => p.id === playerId)?.displayName ?? this.i18n.t('common.unknownPlayer');
   }
 
-  private teamLabelFor(idA: string, idB: string): string {
+  teamLabelFor(idA: string, idB: string): string {
     const custom = this.teamNameMap()[teamPairKey(idA, idB)];
     return custom ?? `${this.nameOf(idA)} & ${this.nameOf(idB)}`;
   }
@@ -504,6 +554,7 @@ export class LiveMatchComponent {
   /** Resets the board and drops straight into a new live round with the given four players, same target score as before. Shared by every post-match shortcut (Next challengers, Same players, and the two streak-prompt choices) so they can't drift out of sync with each other. */
   private beginMatch(ids: { a1: string; a2: string; b1: string; b2: string }): void {
     this.idsSignal.set(ids);
+    this.randomTeamService.recordPlayed([ids.a1, ids.a2, ids.b1, ids.b2]);
     this.scoreA.set(0);
     this.scoreB.set(0);
     this.history.set([]);
@@ -531,19 +582,10 @@ export class LiveMatchComponent {
   start(): void {
     if (this.form.invalid) return;
     const value = this.form.getRawValue();
-    const ids = [value.teamAPlayer1, value.teamAPlayer2, value.teamBPlayer1, value.teamBPlayer2];
-    if (new Set(ids).size !== 4) { this.snackBar.open(this.i18n.t('live.selectFourDistinct'), this.i18n.t('common.close'), { duration: 3000 }); return; }
-    this.idsSignal.set({ a1: value.teamAPlayer1, a2: value.teamAPlayer2, b1: value.teamBPlayer1, b2: value.teamBPlayer2 });
+    const ids = { a1: value.teamAPlayer1, a2: value.teamAPlayer2, b1: value.teamBPlayer1, b2: value.teamBPlayer2 };
+    if (new Set(Object.values(ids)).size !== 4) { this.snackBar.open(this.i18n.t('live.selectFourDistinct'), this.i18n.t('common.close'), { duration: 3000 }); return; }
     this.targetScore.set(value.targetScore);
-    this.scoreA.set(0);
-    this.scoreB.set(0);
-    this.history.set([]);
-    this.dismissedForScore = null;
-    this.startedAt = new Date().toISOString();
-    this.result.set(null);
-    this.confirmingCancel.set(false);
-    this.phase.set('live');
-    this.persist();
+    this.beginMatch(ids);
   }
 
   addPoint(team: 'A' | 'B'): void {
@@ -606,59 +648,89 @@ export class LiveMatchComponent {
   }
 
   /**
-   * "Winners stay": keeps the team that just won in place and draws a new
-   * opposing pair, preferring whoever's active and wasn't just involved in
-   * the match that finished. When there aren't two such fresh players --
-   * small groups run out fast -- the remaining slot(s) are topped up at
-   * random from the team that just lost, so a rematch against (part of)
-   * the same losing pair is always possible rather than the feature just
-   * refusing to work.
-   *
-   * If the winning duo is on a streak of three or more, this pauses for a
-   * "maybe switch it up?" prompt instead of starting immediately -- see
-   * confirmStreakKeep/confirmStreakSwitch, which finish the job by calling
-   * beginMatch with whichever pairing the player picks. Otherwise it skips
-   * the setup screen entirely and drops straight into a new live match,
-   * same target score as before.
+   * "Winners stay": opens the Next opponents picker with a suggested pair
+   * of challengers already filled in -- preferring whoever's active and
+   * wasn't just involved in the match that finished, weighted by
+   * RandomTeamService.pickFairly toward whoever's played the least this
+   * session, and topped up from the team that just lost if there aren't
+   * two such fresh players (small groups run out fast, and the losers
+   * pool always has exactly two players, so a suggestion is always
+   * possible even if it ends up being a rematch against part of the
+   * losing side). If the winning duo is on a streak of three or more, the
+   * picker also offers to split them across both new teams instead of
+   * keeping them together -- see confirmNextOpponents, which reads
+   * whatever the player finalised in the picker and actually starts the
+   * match.
    */
   startWithNewOpponents(): void {
     const res = this.result();
     if (!res || !this.canChainMatch()) return;
     const ids = this.idsSignal();
-    const winningIsA = res.teamDelta >= 0;
-    const winners = winningIsA ? [ids.a1, ids.a2] : [ids.b1, ids.b2];
-    const losers = winningIsA ? [ids.b1, ids.b2] : [ids.a1, ids.a2];
-    const taken = new Set([...winners, ...losers]);
-    const fresh = this.players().filter(p => !taken.has(p.id)).map(p => p.id).sort(() => Math.random() - 0.5);
-    const backup = [...losers].sort(() => Math.random() - 0.5);
-    const [challenger1, challenger2] = [...fresh, ...backup];
-    const keep = { a1: winners[0], a2: winners[1], b1: challenger1, b2: challenger2 };
+    const winners: [string, string] = res.winner === 'A' ? [ids.a1, ids.a2] : [ids.b1, ids.b2];
+    const losers: [string, string] = res.winner === 'A' ? [ids.b1, ids.b2] : [ids.a1, ids.a2];
+    const [challenger1, challenger2] = this.suggestChallengers(winners, losers);
 
     const streak = this.winStreak;
-    if (streak && streak.count >= 3 && streak.key === this.pairKey(winners[0], winners[1])) {
-      const shuffledWinners = [...winners].sort(() => Math.random() - 0.5);
-      const switched = { a1: shuffledWinners[0], a2: challenger1, b1: shuffledWinners[1], b2: challenger2 };
-      this.pendingRematch = { keep, switched };
-      this.streakPrompt.set({ count: streak.count, teamLabel: this.teamLabelFor(winners[0], winners[1]) });
-      return;
-    }
-    this.beginMatch(keep);
+    const onStreak = !!streak && streak.count >= 3 && streak.key === this.pairKey(winners[0], winners[1]);
+    this.nextOpponentsPrompt.set({
+      winners, losers, challenger1, challenger2,
+      splitWinners: false,
+      streak: onStreak ? { count: streak!.count } : null
+    });
   }
 
-  /** "Keep them together": the streak prompt's first choice -- same winning pair vs the new challengers, exactly as Next challengers would've done without the prompt. */
-  confirmStreakKeep(): void {
-    const pending = this.pendingRematch;
-    this.streakPrompt.set(null);
-    this.pendingRematch = null;
-    if (pending) this.beginMatch(pending.keep);
+  /** A fairness-weighted pair of challenger suggestions: prefers players who weren't in the match that just finished (see RandomTeamService.pickFairly), falling back to the losing team for whichever slot(s) that pool can't fill. Used both to fill the Next opponents picker initially and by its "shuffle" button. */
+  private suggestChallengers(winners: [string, string], losers: [string, string]): [string, string] {
+    const taken = new Set([...winners, ...losers]);
+    const freshPlayers = this.players().filter(p => !taken.has(p.id));
+    const fresh = this.randomTeamService.pickFairly(freshPlayers, 2).map(p => p.id);
+    const backup = [...losers].sort(() => Math.random() - 0.5);
+    const combined = [...fresh, ...backup];
+    return [combined[0], combined[1]];
   }
 
-  /** "Switch it up": the streak prompt's other choice -- splits the winning duo across both new teams, each paired with one of the challengers, so the streak team isn't playing together next round. */
-  confirmStreakSwitch(): void {
-    const pending = this.pendingRematch;
-    this.streakPrompt.set(null);
-    this.pendingRematch = null;
-    if (pending) this.beginMatch(pending.switched);
+  /** Options for one of the Next opponents picker's two challenger selects: every active player except the two winners (who can't challenge themselves) and whoever's currently picked in the *other* slot (so the two selects can never end up pointing at the same player). */
+  challengerOptions(
+    nop: { winners: [string, string]; challenger1: string; challenger2: string },
+    slot: 1 | 2
+  ): Player[] {
+    const otherSlotValue = slot === 1 ? nop.challenger2 : nop.challenger1;
+    const exclude = new Set([nop.winners[0], nop.winners[1], otherSlotValue]);
+    return this.players().filter(p => !exclude.has(p.id));
+  }
+
+  setChallenger(slot: 1 | 2, playerId: string): void {
+    this.nextOpponentsPrompt.update(nop => {
+      if (!nop) return nop;
+      return slot === 1 ? { ...nop, challenger1: playerId } : { ...nop, challenger2: playerId };
+    });
+  }
+
+  setSplitWinners(splitWinners: boolean): void {
+    this.nextOpponentsPrompt.update(nop => (nop ? { ...nop, splitWinners } : nop));
+  }
+
+  shuffleChallengers(): void {
+    this.nextOpponentsPrompt.update(nop => {
+      if (!nop) return nop;
+      const [challenger1, challenger2] = this.suggestChallengers(nop.winners, nop.losers);
+      return { ...nop, challenger1, challenger2 };
+    });
+  }
+
+  cancelNextOpponents(): void {
+    this.nextOpponentsPrompt.set(null);
+  }
+
+  /** Reads whatever the player finalised in the Next opponents picker -- their choice of challengers, and, when offered, whether to keep the winning duo together or split them across both teams -- and actually starts the match. */
+  confirmNextOpponents(): void {
+    const nop = this.nextOpponentsPrompt();
+    if (!nop) return;
+    this.nextOpponentsPrompt.set(null);
+    const ids = nop.splitWinners
+      ? { a1: nop.winners[0], a2: nop.challenger1, b1: nop.winners[1], b2: nop.challenger2 }
+      : { a1: nop.winners[0], a2: nop.winners[1], b1: nop.challenger1, b2: nop.challenger2 };
+    this.beginMatch(ids);
   }
 
   /**
